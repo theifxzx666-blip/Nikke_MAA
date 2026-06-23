@@ -1,0 +1,31 @@
+# Local editor/runtime state
+.codex/
+.agents/
+.restore/
+.venv/
+__pycache__/
+*.py[cod]
+*.log
+*.tmp
+
+# Android and Java build outputs
+outputs/
+tools/android_maanikke_debug_apk/build/
+tools/android_root_imagereader_probe/build/
+tools/android_virtual_display_probe/build/
+*.apk
+*.aab
+*.dex
+
+# Local screenshots, recordings, and evidence
+screenshots/
+recordings/
+*.mp4
+*.mov
+*.avi
+
+# Local secrets and machine-specific config
+*.secret
+*.local
+.env
+.env.*

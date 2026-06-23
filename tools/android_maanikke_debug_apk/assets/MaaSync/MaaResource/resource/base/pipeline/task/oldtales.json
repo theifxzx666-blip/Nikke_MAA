@@ -1,0 +1,652 @@
+{
+    "$__mpe_config_oldtales": {
+        "$__mpe_code": {
+            "prefix": "",
+            "coordinateMode": "absolute-v1",
+            "lastSyncTime": 1780730639395,
+            "isModifiedExternally": false,
+            "filePath": "C:\\other\\MaaNikke_dev\\resource\\base\\pipeline\\task\\oldtales.json",
+            "savedViewport": {
+                "x": -2017,
+                "y": -443,
+                "zoom": 1
+            },
+            "filename": "oldtales",
+            "version": "v1.6.1"
+        }
+    },
+    "$__mpe_anchor_oldtalesanchor_oldtales": {
+        "$__mpe_code": {
+            "position": {
+                "x": 4363,
+                "y": 212
+            }
+        }
+    },
+    "$__mpe_external_backtohomepage_oldtales": {
+        "$__mpe_code": {
+            "position": {
+                "x": 528,
+                "y": 1162
+            }
+        }
+    },
+    "claimoldtalesrewards": {
+        "max_hit": 1,
+        "next": [
+            "oldtalesrewards",
+            "oldtalesrewards2"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 1286,
+                "y": 599
+            }
+        }
+    },
+    "claimoldtalesrewardsdaily": {
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": [
+                    525,
+                    313,
+                    273,
+                    320
+                ],
+                "expected": [
+                    "点击领取奖励",
+                    "点击领取",
+                    "领取奖励"
+                ]
+            }
+        },
+        "action": {
+            "type": "Click"
+        },
+        "next": [
+            "oldtalesrewardsend"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 2296,
+                "y": 580
+            }
+        }
+    },
+    "endoldtalesquickfight": {
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "expected": [
+                    "首次",
+                    "不足"
+                ]
+            }
+        },
+        "next": [
+            "[Anchor]oldtalesanchor"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 3983,
+                "y": -54
+            }
+        }
+    },
+    "intooldtales": {
+        "recognition": {
+            "type": "TemplateMatch",
+            "param": {
+                "roi": [
+                    762,
+                    426,
+                    289,
+                    243
+                ],
+                "template": [
+                    "limitedevent/oldtales/oldtales.png",
+                    "limitedevent/oldtales/oldtales2.png"
+                ]
+            }
+        },
+        "action": {
+            "type": "Click",
+            "param": {
+                "target": [
+                    838,
+                    597,
+                    107,
+                    18
+                ]
+            }
+        },
+        "next": [
+            "oldtalescheckintoevent2"
+        ],
+        "on_error": [
+            "oldtalesclaimreward"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 565,
+                "y": -138
+            }
+        }
+    },
+    "intooldtaleseventstage": {
+        "action": {
+            "type": "Click",
+            "param": {
+                "target": [
+                    550,
+                    557,
+                    114,
+                    21
+                ]
+            }
+        },
+        "$__mpe_code": {
+            "position": {
+                "x": 2364,
+                "y": 394
+            }
+        }
+    },
+    "intooldtalesquickfight": {
+        "recognition": {
+            "type": "TemplateMatch",
+            "param": {
+                "roi": [
+                    696,
+                    364,
+                    105,
+                    213
+                ],
+                "template": [
+                    "limitedevent/oldtales/oldtalesquickfight.png"
+                ]
+            }
+        },
+        "action": {
+            "type": "Click"
+        },
+        "post_wait_freezes": 1000,
+        "next": [
+            "startoldtalesquickfight",
+            "intooldtalesquickfight"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 2672,
+                "y": 146
+            }
+        }
+    },
+    "oldtales": {
+        "anchor": "oldtalesanchor",
+        "next": [
+            "oldtalesclaimreward",
+            "[JumpBack]backtohomepage"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": -156,
+                "y": 190
+            }
+        }
+    },
+    "oldtalescheckintoevent": {
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": [
+                    0,
+                    6,
+                    102,
+                    39
+                ],
+                "expected": [
+                    "活动地区",
+                    "地区"
+                ]
+            }
+        },
+        "next": [
+            "[JumpBack]oldtalesquickfight_checkdate",
+            "claimoldtalesrewards",
+            "backtohomepage"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 875,
+                "y": 172
+            }
+        }
+    },
+    "oldtalescheckintoevent2": {
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": [
+                    0,
+                    6,
+                    102,
+                    39
+                ],
+                "expected": [
+                    "活动地区",
+                    "活动",
+                    "地区"
+                ]
+            }
+        },
+        "$__mpe_code": {
+            "position": {
+                "x": 904,
+                "y": -115
+            }
+        }
+    },
+    "oldtalescheckintoeventreturn": {
+        "max_hit": 5,
+        "recognition": {
+            "type": "TemplateMatch",
+            "param": {
+                "roi": [
+                    774,
+                    553,
+                    247,
+                    121
+                ],
+                "template": [
+                    "exchange.png"
+                ]
+            }
+        },
+        "action": {
+            "type": "Click"
+        },
+        "$__mpe_code": {
+            "position": {
+                "x": 565,
+                "y": 336
+            }
+        }
+    },
+    "oldtalesclaimreward": {
+        "recognition": {
+            "type": "And",
+            "param": {
+                "all_of": [
+                    "homepagesign",
+                    "homepagesign2"
+                ]
+            }
+        },
+        "next": [
+            "oldtalescheckintoevent",
+            "[JumpBack]intooldtales",
+            "[JumpBack]oldtalescheckintoeventreturn",
+            "backtohomepage"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 276,
+                "y": 191
+            }
+        }
+    },
+    "oldtaleseventstage": {
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": [
+                    0,
+                    6,
+                    102,
+                    39
+                ],
+                "expected": [
+                    "活动关卡"
+                ]
+            }
+        },
+        "next": [
+            "intooldtalesquickfight"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 2363,
+                "y": 180
+            }
+        }
+    },
+    "oldtalesquickfight": {
+        "enabled": true,
+        "max_hit": 1,
+        "next": [
+            "[JumpBack]oldtalesstory1",
+            "oldtalesstoryevent"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 1691,
+                "y": 173
+            }
+        }
+    },
+    "oldtalesquickfight_checkdate": {
+        "max_hit": 1,
+        "action": {
+            "type": "Custom",
+            "param": {
+                "custom_action": "CheckDate",
+                "custom_action_param": {
+                    "dates": [
+                        "2026-05-29",
+                        "2026-06-02",
+                        "2026-06-03",
+                        "2026-06-04"
+                    ],
+                    "inverse": true
+                }
+            }
+        },
+        "next": [
+            "oldtalesquickfight",
+            "oldtalesquickfight_skip"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 1290,
+                "y": 145
+            }
+        }
+    },
+    "oldtalesquickfight_skip": {
+        "$__mpe_code": {
+            "position": {
+                "x": 1692,
+                "y": 26
+            }
+        }
+    },
+    "oldtalesquickfightmax": {
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": [
+                    479,
+                    454,
+                    325,
+                    70
+                ],
+                "expected": [
+                    "MAX"
+                ]
+            }
+        },
+        "action": {
+            "type": "Click"
+        },
+        "repeat": 3,
+        "next": [
+            "startoldtalesquickfightmax"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 3341,
+                "y": 154
+            }
+        }
+    },
+    "oldtalesrewards": {
+        "recognition": {
+            "type": "TemplateMatch",
+            "param": {
+                "roi": [
+                    1181,
+                    89,
+                    98,
+                    128
+                ],
+                "template": [
+                    "limitedevent/oldtales/oldtalesrewards.png"
+                ]
+            }
+        },
+        "action": {
+            "type": "Click"
+        },
+        "next": [
+            "oldtalesrewardsdaily"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 1660,
+                "y": 593
+            }
+        }
+    },
+    "oldtalesrewards2": {
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": [
+                    1197,
+                    106,
+                    82,
+                    94
+                ],
+                "expected": [
+                    "任务"
+                ]
+            }
+        },
+        "action": {
+            "type": "Click"
+        },
+        "next": [
+            "oldtalesrewardsdaily"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 1635,
+                "y": 823
+            }
+        }
+    },
+    "oldtalesrewardsdaily": {
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": [
+                    451,
+                    589,
+                    377,
+                    93
+                ],
+                "expected": [
+                    "全部领取",
+                    "全部",
+                    "领取"
+                ]
+            }
+        },
+        "action": {
+            "type": "Click"
+        },
+        "repeat": 10,
+        "repeat_delay": 500,
+        "next": [
+            "oldtalesrewardsend",
+            "claimoldtalesrewardsdaily"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 1979,
+                "y": 641
+            }
+        }
+    },
+    "oldtalesrewardsend": {
+        "recognition": {
+            "type": "TemplateMatch",
+            "param": {
+                "template": [
+                    "homebutton1.png"
+                ]
+            }
+        },
+        "next": [
+            "backtohomepage"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 2290,
+                "y": 819
+            }
+        }
+    },
+    "oldtalesstory1": {
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": [
+                    501,
+                    497,
+                    94,
+                    89
+                ],
+                "expected": [
+                    "STORY"
+                ]
+            }
+        },
+        "action": {
+            "type": "Click"
+        },
+        "$__mpe_code": {
+            "position": {
+                "x": 2020,
+                "y": 392
+            }
+        }
+    },
+    "oldtalesstoryevent": {
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": [
+                    0,
+                    6,
+                    102,
+                    39
+                ],
+                "expected": [
+                    "剧情活动"
+                ]
+            }
+        },
+        "next": [
+            "oldtaleseventstage",
+            "[JumpBack]intooldtaleseventstage"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 2021,
+                "y": 178
+            }
+        }
+    },
+    "startoldtalesquickfight": {
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": [
+                    662,
+                    592,
+                    176,
+                    49
+                ],
+                "expected": [
+                    "快速战斗"
+                ]
+            }
+        },
+        "action": {
+            "type": "Click"
+        },
+        "next": [
+            "endoldtalesquickfight",
+            "oldtalesquickfightmax"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 3028,
+                "y": 151
+            }
+        }
+    },
+    "startoldtalesquickfightmax": {
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": [
+                    479,
+                    525,
+                    323,
+                    59
+                ],
+                "expected": [
+                    "进行战斗",
+                    "战斗"
+                ]
+            }
+        },
+        "action": {
+            "type": "Click"
+        },
+        "next": [
+            "startoldtalesquickfightmaxconfirm"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 3652,
+                "y": 167
+            }
+        }
+    },
+    "startoldtalesquickfightmaxconfirm": {
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": [
+                    538,
+                    590,
+                    207,
+                    89
+                ],
+                "expected": [
+                    "点击任意处",
+                    "任意处进行",
+                    "ESC"
+                ]
+            }
+        },
+        "action": {
+            "type": "Click"
+        },
+        "next": [
+            "[Anchor]oldtalesanchor",
+            "startoldtalesquickfightmaxconfirm"
+        ],
+        "$__mpe_code": {
+            "position": {
+                "x": 3984,
+                "y": 168
+            }
+        }
+    }
+}

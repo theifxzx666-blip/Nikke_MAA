@@ -1,0 +1,570 @@
+﻿{
+    "source":  "MaaNikke-win-x86_64-v2.0.8",
+    "generatedAt":  "2026-06-18T11:21:21",
+    "files":  [
+                  {
+                      "path":  "interface.json",
+                      "size":  17296
+                  },
+                  {
+                      "path":  "resource/base/image/3pass.png",
+                      "size":  1061
+                  },
+                  {
+                      "path":  "resource/base/image/3passopen.png",
+                      "size":  1090
+                  },
+                  {
+                      "path":  "resource/base/image/arena/intoarena.png",
+                      "size":  5924
+                  },
+                  {
+                      "path":  "resource/base/image/ark.png",
+                      "size":  4364
+                  },
+                  {
+                      "path":  "resource/base/image/back.png",
+                      "size":  1616
+                  },
+                  {
+                      "path":  "resource/base/image/claimmail/mail.png",
+                      "size":  1349
+                  },
+                  {
+                      "path":  "resource/base/image/claimmail/mail2.png",
+                      "size":  887
+                  },
+                  {
+                      "path":  "resource/base/image/dailyrewards/task.png",
+                      "size":  1726
+                  },
+                  {
+                      "path":  "resource/base/image/dispatchboard/dispatch.png",
+                      "size":  1491
+                  },
+                  {
+                      "path":  "resource/base/image/dispatchboard/dispatchboard.png",
+                      "size":  6737
+                  },
+                  {
+                      "path":  "resource/base/image/dispatchboard/exitdispatch.png",
+                      "size":  1372
+                  },
+                  {
+                      "path":  "resource/base/image/dispatchboard/intodispatchboard.png",
+                      "size":  2219
+                  },
+                  {
+                      "path":  "resource/base/image/exchange.png",
+                      "size":  1047
+                  },
+                  {
+                      "path":  "resource/base/image/exevent.png",
+                      "size":  2873
+                  },
+                  {
+                      "path":  "resource/base/image/fighting.png",
+                      "size":  1163
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/0zuanpay.png",
+                      "size":  2050
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/arenashop.png",
+                      "size":  1848
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/basicshop.png",
+                      "size":  1365
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/bodytagshop.png",
+                      "size":  1630
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/codebook.png",
+                      "size":  7923
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/copgearforge.png",
+                      "size":  7453
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/diancode.png",
+                      "size":  7485
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/fengcode.png",
+                      "size":  7715
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/freeshoprefresh.png",
+                      "size":  2492
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/gameshopdiamonds.png",
+                      "size":  7249
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/huocode.png",
+                      "size":  7390
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/juxiong.png",
+                      "size":  7531
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/probooster.png",
+                      "size":  7527
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/profilepack.png",
+                      "size":  7313
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/redeyes1h.png",
+                      "size":  8370
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/redeyes2h.png",
+                      "size":  8341
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/scrapshop.png",
+                      "size":  1516
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/shuicode.png",
+                      "size":  7439
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/wucode.png",
+                      "size":  7440
+                  },
+                  {
+                      "path":  "resource/base/image/freeshopdaily/战术.png",
+                      "size":  7577
+                  },
+                  {
+                      "path":  "resource/base/image/friendpoints/friend.png",
+                      "size":  1549
+                  },
+                  {
+                      "path":  "resource/base/image/friendpoints/friendwin.png",
+                      "size":  1403
+                  },
+                  {
+                      "path":  "resource/base/image/friendpoints/sendpoints.png",
+                      "size":  2314
+                  },
+                  {
+                      "path":  "resource/base/image/gameshop.png",
+                      "size":  6026
+                  },
+                  {
+                      "path":  "resource/base/image/gearup/gearexp1.png",
+                      "size":  5552
+                  },
+                  {
+                      "path":  "resource/base/image/gearup/gearexp2.png",
+                      "size":  5856
+                  },
+                  {
+                      "path":  "resource/base/image/gearup/gearexp3.png",
+                      "size":  6201
+                  },
+                  {
+                      "path":  "resource/base/image/gearup/gearup.png",
+                      "size":  1730
+                  },
+                  {
+                      "path":  "resource/base/image/gearup/itembar.png",
+                      "size":  4850
+                  },
+                  {
+                      "path":  "resource/base/image/gengshengguan/blue_yes.png",
+                      "size":  605
+                  },
+                  {
+                      "path":  "resource/base/image/gengshengguan/elevator.png",
+                      "size":  4055
+                  },
+                  {
+                      "path":  "resource/base/image/gengshengguan/yellow_yes.png",
+                      "size":  530
+                  },
+                  {
+                      "path":  "resource/base/image/gengshengguan/zise_yes.png",
+                      "size":  519
+                  },
+                  {
+                      "path":  "resource/base/image/homebutton1.png",
+                      "size":  1265
+                  },
+                  {
+                      "path":  "resource/base/image/homebutton2.png",
+                      "size":  6421
+                  },
+                  {
+                      "path":  "resource/base/image/inquiryandgift/basicgift1.png",
+                      "size":  6324
+                  },
+                  {
+                      "path":  "resource/base/image/inquiryandgift/basicgift2.png",
+                      "size":  6180
+                  },
+                  {
+                      "path":  "resource/base/image/inquiryandgift/basicgift3.png",
+                      "size":  6138
+                  },
+                  {
+                      "path":  "resource/base/image/inquiryandgift/gift.png",
+                      "size":  7977
+                  },
+                  {
+                      "path":  "resource/base/image/inquiryandgift/intonikkes.png",
+                      "size":  3365
+                  },
+                  {
+                      "path":  "resource/base/image/inquiryandgift/nikkes.png",
+                      "size":  13070
+                  },
+                  {
+                      "path":  "resource/base/image/inquiryandgift/sendgift.png",
+                      "size":  2037
+                  },
+                  {
+                      "path":  "resource/base/image/interception/anomoly.png",
+                      "size":  6454
+                  },
+                  {
+                      "path":  "resource/base/image/interception/basicinterception.png",
+                      "size":  7519
+                  },
+                  {
+                      "path":  "resource/base/image/interception/intointerception.png",
+                      "size":  25719
+                  },
+                  {
+                      "path":  "resource/base/image/lianmeng.png",
+                      "size":  2728
+                  },
+                  {
+                      "path":  "resource/base/image/lianmengzhan/lianmengzhann.png",
+                      "size":  2909
+                  },
+                  {
+                      "path":  "resource/base/image/lianmengzhan/lianmengzhannoopen.png",
+                      "size":  1160
+                  },
+                  {
+                      "path":  "resource/base/image/limitedevent/basicticket.png",
+                      "size":  7185
+                  },
+                  {
+                      "path":  "resource/base/image/limitedevent/eventsexchange.png",
+                      "size":  1207
+                  },
+                  {
+                      "path":  "resource/base/image/limitedevent/eventsmissionbuttom.png",
+                      "size":  3343
+                  },
+                  {
+                      "path":  "resource/base/image/limitedevent/eventsmissionbuttom_greenbg.png",
+                      "size":  1369
+                  },
+                  {
+                      "path":  "resource/base/image/limitedevent/jinxplayer/jinxplayer.png",
+                      "size":  7855
+                  },
+                  {
+                      "path":  "resource/base/image/limitedevent/oldtales/oldtales.png",
+                      "size":  9282
+                  },
+                  {
+                      "path":  "resource/base/image/limitedevent/oldtales/oldtales2.png",
+                      "size":  4537
+                  },
+                  {
+                      "path":  "resource/base/image/limitedevent/oldtales/oldtalesquickfight.png",
+                      "size":  3502
+                  },
+                  {
+                      "path":  "resource/base/image/limitedevent/oldtales/oldtalesrewards.png",
+                      "size":  2130
+                  },
+                  {
+                      "path":  "resource/base/image/limitedevent/premiumticket.png",
+                      "size":  7198
+                  },
+                  {
+                      "path":  "resource/base/image/limitedevent/rebelroad/rebelroad.png",
+                      "size":  4650
+                  },
+                  {
+                      "path":  "resource/base/image/limitedevent/redeyes.png",
+                      "size":  6049
+                  },
+                  {
+                      "path":  "resource/base/image/limitedevent/stagesexchange.png",
+                      "size":  1751
+                  },
+                  {
+                      "path":  "resource/base/image/limitedevent/stagesexchange_greenbg.png",
+                      "size":  969
+                  },
+                  {
+                      "path":  "resource/base/image/looproomandsync/commandcenter.png",
+                      "size":  3697
+                  },
+                  {
+                      "path":  "resource/base/image/looproomandsync/looproom.png",
+                      "size":  5294
+                  },
+                  {
+                      "path":  "resource/base/image/looproomandsync/sync.png",
+                      "size":  4428
+                  },
+                  {
+                      "path":  "resource/base/image/looproomandsync/sync1.png",
+                      "size":  425
+                  },
+                  {
+                      "path":  "resource/base/image/looproomandsync/sync2.png",
+                      "size":  438
+                  },
+                  {
+                      "path":  "resource/base/image/noteam.png",
+                      "size":  9395
+                  },
+                  {
+                      "path":  "resource/base/image/notice.png",
+                      "size":  900
+                  },
+                  {
+                      "path":  "resource/base/image/outpostdefense/intooutpostdefense1.png",
+                      "size":  2167
+                  },
+                  {
+                      "path":  "resource/base/image/outpostdefense/intooutpostdefense1b.png",
+                      "size":  2393
+                  },
+                  {
+                      "path":  "resource/base/image/outpostdefense/intooutpostdefense2.png",
+                      "size":  2721
+                  },
+                  {
+                      "path":  "resource/base/image/outpostdefense/intooutpostdefense2b.png",
+                      "size":  2691
+                  },
+                  {
+                      "path":  "resource/base/image/outpostdefense/spendzuan.png",
+                      "size":  1711
+                  },
+                  {
+                      "path":  "resource/base/image/payshop/basicpack.png",
+                      "size":  1586
+                  },
+                  {
+                      "path":  "resource/base/image/payshop/payshop.png",
+                      "size":  2131
+                  },
+                  {
+                      "path":  "resource/base/image/payshop/shouqing.png",
+                      "size":  3536
+                  },
+                  {
+                      "path":  "resource/base/image/redpoint.png",
+                      "size":  343
+                  },
+                  {
+                      "path":  "resource/base/image/redpoint2.png",
+                      "size":  342
+                  },
+                  {
+                      "path":  "resource/base/image/signevent/爱丽丝兔女郎/待领取.png",
+                      "size":  2658
+                  },
+                  {
+                      "path":  "resource/base/image/signevent/爱丽丝兔女郎/已领取.png",
+                      "size":  3921
+                  },
+                  {
+                      "path":  "resource/base/image/simroom/exitsimroom.png",
+                      "size":  1143
+                  },
+                  {
+                      "path":  "resource/base/image/simroom/simroom.png",
+                      "size":  10152
+                  },
+                  {
+                      "path":  "resource/base/image/teambattle/accept.png",
+                      "size":  1260
+                  },
+                  {
+                      "path":  "resource/base/image/teambattle/teambattle.png",
+                      "size":  2602
+                  },
+                  {
+                      "path":  "resource/base/image/teamrecruit/recruitswiep.png",
+                      "size":  2253
+                  },
+                  {
+                      "path":  "resource/base/image/teamrecruit/teamrecruit.png",
+                      "size":  3980
+                  },
+                  {
+                      "path":  "resource/base/image/teamrecruit/teamrecruitstart.png",
+                      "size":  3276
+                  },
+                  {
+                      "path":  "resource/base/image/tower/tower.png",
+                      "size":  27714
+                  },
+                  {
+                      "path":  "resource/base/image/x.png",
+                      "size":  1147
+                  },
+                  {
+                      "path":  "resource/base/image/x2.png",
+                      "size":  660
+                  },
+                  {
+                      "path":  "resource/base/model/ocr/det.onnx",
+                      "size":  4748769
+                  },
+                  {
+                      "path":  "resource/base/model/ocr/keys.txt",
+                      "size":  74012
+                  },
+                  {
+                      "path":  "resource/base/model/ocr/README.md",
+                      "size":  1086
+                  },
+                  {
+                      "path":  "resource/base/model/ocr/rec.onnx",
+                      "size":  16517247
+                  },
+                  {
+                      "path":  "resource/base/pipeline/default_pipeline.json",
+                      "size":  68
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/arena.json",
+                      "size":  15321
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/backtohomepage.json",
+                      "size":  9147
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/bigevent.json",
+                      "size":  15186
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/claimmail.json",
+                      "size":  3949
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/claimpassreward.json",
+                      "size":  12844
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/climbtower.json",
+                      "size":  29348
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/dailyrewards.json",
+                      "size":  7264
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/dispatchboard.json",
+                      "size":  8322
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/freeshopdaily.json",
+                      "size":  34535
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/friendpoints.json",
+                      "size":  5670
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/gearup.json",
+                      "size":  6491
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/gengshengguan.json",
+                      "size":  7608
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/inquiryandgift.json",
+                      "size":  24346
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/interception.json",
+                      "size":  14646
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/lianmengtuxi.json",
+                      "size":  18359
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/limitedevent.json",
+                      "size":  9802
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/loginrewards.json",
+                      "size":  7896
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/looproomandsync.json",
+                      "size":  20662
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/oldtales.json",
+                      "size":  15054
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/outpostdefense.json",
+                      "size":  18487
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/payshop.json",
+                      "size":  10236
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/simroom.json",
+                      "size":  13155
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/smallevent1.json",
+                      "size":  21401
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/smallevent2.json",
+                      "size":  651
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/startgame.json",
+                      "size":  9565
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/stopgame.json",
+                      "size":  868
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/teambattle.json",
+                      "size":  13063
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/teamrecruit.json",
+                      "size":  9722
+                  },
+                  {
+                      "path":  "resource/base/pipeline/task/test.json",
+                      "size":  7670
+                  }
+              ]
+}

@@ -1,0 +1,31 @@
+{
+    "$__mpe_config_stopgame": {
+        "$__mpe_code": {
+            "prefix": "",
+            "coordinateMode": "absolute-v1",
+            "lastSyncTime": 1779231703611,
+            "isModifiedExternally": false,
+            "filePath": "C:\\other\\MaaNikke\\resource\\base\\pipeline\\task\\stopgame.json",
+            "savedViewport": {
+                "x": 943,
+                "y": 361,
+                "zoom": 1.14
+            },
+            "filename": "stopgame",
+            "version": "v1.5.3"
+        }
+    },
+    "stopgame": {
+        "doc": "关闭游戏",
+        "max_hit": 1,
+        "focus": {
+            "Node.Action.Starting": "{“context”:“MaaNikke任务完成”,“display”:\"notification\"}"
+        },
+        "$__mpe_code": {
+            "position": {
+                "x": -42,
+                "y": -56
+            }
+        }
+    }
+}

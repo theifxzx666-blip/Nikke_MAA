@@ -1,0 +1,25 @@
+{
+    "$__mpe_config_smallevent2": {
+        "$__mpe_code": {
+            "prefix": "",
+            "filePath": "C:\\other\\MaaNikke_dev\\resource\\base\\pipeline\\task\\smallevent2.json",
+            "lastSyncTime": 1780738713640,
+            "coordinateMode": "absolute-v1",
+            "savedViewport": {
+                "x": -12341,
+                "y": 1104,
+                "zoom": 1.5
+            },
+            "filename": "smallevent2",
+            "version": "v1.6.1"
+        }
+    },
+    "smallevent2": {
+        "$__mpe_code": {
+            "position": {
+                "x": 8729,
+                "y": -544
+            }
+        }
+    }
+}
