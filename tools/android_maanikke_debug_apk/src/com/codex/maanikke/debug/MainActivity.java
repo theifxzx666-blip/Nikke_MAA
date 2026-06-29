@@ -533,7 +533,7 @@ public final class MainActivity extends Activity {
         settingsButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                switchPage(PAGE_SETTINGS);
+                showGlobalSettingsDialog();
             }
         });
         LinearLayout.LayoutParams settingsParams = new LinearLayout.LayoutParams(dp(42), dp(32));
@@ -579,127 +579,22 @@ public final class MainActivity extends Activity {
         actionValueText = addMetric(metricRow1, "动作", "-");
         stateValueText = phaseText;
 
-        LinearLayout backgroundCard = cardLayout(0xffffffff, 0x1f000000);
-        LinearLayout.LayoutParams backgroundParams = new LinearLayout.LayoutParams(
+        LinearLayout commonCard = cardLayout(0xffffffff, 0x1f000000);
+        LinearLayout.LayoutParams commonParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        backgroundParams.topMargin = dp(12);
-        content.addView(backgroundCard, backgroundParams);
+        commonParams.topMargin = dp(12);
+        content.addView(commonCard, commonParams);
 
-        TextView backgroundTitle = sectionLabel("开屏选项");
-        backgroundCard.addView(backgroundTitle, new LinearLayout.LayoutParams(
+        TextView commonTitle = sectionLabel("常用选项");
+        commonCard.addView(commonTitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
-        addBackendModeRow(backgroundCard);
-        addDivider(backgroundCard);
-        addDebugModeRow(backgroundCard);
-        addDivider(backgroundCard);
-        addBackgroundModeRow(backgroundCard);
-
-        LinearLayout profileCard = cardLayout(0xffffffff, 0x1f000000);
-        LinearLayout.LayoutParams profileParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        profileParams.topMargin = dp(12);
-        content.addView(profileCard, profileParams);
-
-        TextView profileTitle = sectionLabel("当前方案");
-        profileCard.addView(profileTitle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        ));
-        profileModeText = addInfoRow(profileCard, "Profile", buildProfileModeText());
-        addInfoRow(profileCard, "任务目录", TaskCatalog.enabledCount() + " / " + TaskCatalog.PC_TASKS.length + " 已启用");
-        addInfoRow(profileCard, "显示容器", "1280 x 720 @ 160dpi");
-        addInfoRow(profileCard, "资源目录", "Documents/MaaNikke/resource/base");
-
-        LinearLayout quickCard = cardLayout(0xffffffff, 0x1f000000);
-        LinearLayout.LayoutParams quickParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        quickParams.topMargin = dp(12);
-        content.addView(quickCard, quickParams);
-
-        TextView quickTitle = sectionLabel("资源与权限");
-        quickCard.addView(quickTitle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        ));
-        addActionRow(quickCard, "运行环境预检",
-                "只读检查控制器、存储、目标包、资源和 OCR 证据。", "预检", new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        runRuntimeCapabilityPrecheck();
-                    }
-                });
-        addDivider(quickCard);
-        shizukuPermissionText = addPermissionRow(quickCard, "Shizuku 权限管理", "检查中", new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                requestOrOpenShizukuManagement();
-            }
-        });
-        addDivider(quickCard);
-        addActionRow(quickCard, "Shizuku 通道检测",
-                "验证授权、shell 身份和 /data/local/tmp 写入能力。", "检测", new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        testShizukuBackendChannel();
-                    }
-                });
-        permissionExpandText = actionText(getPreferencesStore().getBoolean(PREF_PERMISSION_EXPANDED, false)
-                ? "收起其他权限" : "展开其他权限");
-        permissionExpandText.setGravity(Gravity.CENTER);
-        permissionExpandText.setPadding(0, dp(10), 0, dp(2));
-        permissionExpandText.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                setPermissionExpanded(permissionExtraContainer == null
-                        || permissionExtraContainer.getVisibility() != View.VISIBLE);
-            }
-        });
-        quickCard.addView(permissionExpandText, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(42)
-        ));
-
-        permissionExtraContainer = new LinearLayout(this);
-        permissionExtraContainer.setOrientation(LinearLayout.VERTICAL);
-        quickCard.addView(permissionExtraContainer, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        ));
-        storagePermissionText = addPermissionRow(permissionExtraContainer, "存储权限", "检查中", new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                openStoragePermission();
-            }
-        });
-        packageListPermissionText = addPermissionRow(permissionExtraContainer, "应用安装列表获取", "检查中", new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                openAppDetails();
-            }
-        });
-        notificationPermissionText = addPermissionRow(permissionExtraContainer, "通知权限", "检查中", new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                openNotificationPermission();
-            }
-        });
-        batteryPermissionText = addPermissionRow(permissionExtraContainer, "后台保活", "检查中", new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                openBatterySettings();
-            }
-        });
-        setPermissionExpanded(getPreferencesStore().getBoolean(PREF_PERMISSION_EXPANDED, false));
-
-        addAboutCard(content);
+        addDebugModeRow(commonCard);
+        addDivider(commonCard);
+        addBackgroundModeRow(commonCard);
     }
 
     private void buildTaskPage(LinearLayout content) {
@@ -1360,6 +1255,175 @@ public final class MainActivity extends Activity {
         addInfoRow(overrideCard, "组件覆盖", "/data/local/tmp/maanikke_target_component.txt");
         addInfoRow(overrideCard, "后端脚本", "/data/local/tmp/maanikke_run_probe_env.sh");
         addInfoRow(overrideCard, "任务结果", "/data/local/tmp/maanikke_task_result.txt");
+    }
+
+    private void showGlobalSettingsDialog() {
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(14), dp(8), dp(14), dp(14));
+        scroll.addView(content, new ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT,
+                ScrollView.LayoutParams.WRAP_CONTENT
+        ));
+
+        LinearLayout statusCard = cardLayout(0xffffffff, 0x1f000000);
+        content.addView(statusCard, stackedCardParams(0));
+        TextView statusTitle = sectionLabel("概览");
+        statusCard.addView(statusTitle, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        profileModeText = addInfoRow(statusCard, "Profile", buildProfileModeText());
+        addInfoRow(statusCard, "任务目录", TaskCatalog.enabledCount() + " / " + TaskCatalog.PC_TASKS.length + " 已启用");
+        addInfoRow(statusCard, "显示容器", "1280 x 720 @ 160dpi");
+        addInfoRow(statusCard, "资源目录", "Documents/MaaNikke/resource/base");
+
+        LinearLayout updateCard = cardLayout(0xffffffff, 0x1f000000);
+        content.addView(updateCard, stackedCardParams(dp(12)));
+        TextView updateTitle = sectionLabel("更新管理");
+        updateCard.addView(updateTitle, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        addActionRow(updateCard, "重新初始化资源", "清空并重新解压 APK 内置资源与 OCR 证据。", "执行",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        forceReinitializeResources();
+                    }
+                });
+        addDivider(updateCard);
+        addActionRow(updateCard, "启动时检查更新", "运行当前安全更新检查流程。", "检查",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        runBackendTask("handle_update");
+                    }
+                });
+        addDivider(updateCard);
+        addInfoRow(updateCard, "更新渠道", "稳定版");
+
+        LinearLayout logCard = cardLayout(0xffffffff, 0x1f000000);
+        content.addView(logCard, stackedCardParams(dp(12)));
+        TextView logTitle = sectionLabel("日志");
+        logCard.addView(logTitle, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        addActionRow(logCard, "运行日志", "跳转到后台任务页日志标签。", "查看",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        switchPage(PAGE_TASKS);
+                        switchTaskTab(TASK_TAB_LOGS);
+                    }
+                });
+        addDivider(logCard);
+        addActionRow(logCard, "导出日志压缩包", "导出当前日志、后端日志和最后截图。", "导出",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        exportEvidence();
+                    }
+                });
+
+        LinearLayout otherCard = cardLayout(0xffffffff, 0x1f000000);
+        content.addView(otherCard, stackedCardParams(dp(12)));
+        TextView otherTitle = sectionLabel("其他设置");
+        otherCard.addView(otherTitle, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        addBackendModeRow(otherCard);
+        addDivider(otherCard);
+        addActionRow(otherCard, "运行环境预检",
+                "只读检查控制器、存储、目标包、资源和 OCR 证据。", "预检",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        runRuntimeCapabilityPrecheck();
+                    }
+                });
+        addDivider(otherCard);
+        shizukuPermissionText = addPermissionRow(otherCard, "Shizuku 权限管理", "检查中",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        requestOrOpenShizukuManagement();
+                    }
+                });
+        addDivider(otherCard);
+        storagePermissionText = addPermissionRow(otherCard, "存储权限", "检查中",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        openStoragePermission();
+                    }
+                });
+        addDivider(otherCard);
+        notificationPermissionText = addPermissionRow(otherCard, "通知权限", "检查中",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        openNotificationPermission();
+                    }
+                });
+        addDivider(otherCard);
+        batteryPermissionText = addPermissionRow(otherCard, "后台保活", "检查中",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        openBatterySettings();
+                    }
+                });
+
+        LinearLayout dataCard = cardLayout(0xffffffff, 0x1f000000);
+        content.addView(dataCard, stackedCardParams(dp(12)));
+        TextView dataTitle = sectionLabel("数据管理");
+        dataCard.addView(dataTitle, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        addActionRow(dataCard, "导出日志与证据", "保存到 Documents/MaaNikke/exports。", "导出",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        exportEvidence();
+                    }
+                });
+        addDivider(dataCard);
+        addActionRow(dataCard, "系统应用设置", "打开 Android 应用详情页。", "打开",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        openAppDetails();
+                    }
+                });
+
+        addAboutCard(content);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("全局设置")
+                .setView(scroll)
+                .setPositiveButton("关闭", null)
+                .create();
+        dialog.setOnShowListener(new DialogInterface.OnShowListener() {
+            @Override
+            public void onShow(DialogInterface dialogInterface) {
+                refreshPermissionStatus();
+            }
+        });
+        dialog.show();
+    }
+
+    private LinearLayout.LayoutParams stackedCardParams(int topMargin) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.topMargin = topMargin;
+        return params;
     }
 
     private void addAboutCard(LinearLayout content) {
@@ -4030,6 +4094,28 @@ public final class MainActivity extends Activity {
             writeTextFile(stampFile, assetStamp);
             append("APK 资源已同步到：" + targetBaseRoot.getAbsolutePath());
         }
+    }
+
+    private void forceReinitializeResources() {
+        if (!hasStoragePermission()) {
+            append("重新初始化资源需要先授予文件访问权限。");
+            openStoragePermission();
+            return;
+        }
+        controlExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    File resourceRoot = getPublicProjectDir(PUBLIC_RESOURCE_DIR);
+                    clearDirectory(resourceRoot, null);
+                    syncBundledResourcesIfNeeded();
+                    append("资源已重新初始化。");
+                } catch (Throwable error) {
+                    append("重新初始化资源失败：" + error.getClass().getSimpleName()
+                            + ": " + error.getMessage());
+                }
+            }
+        });
     }
 
     private boolean isBundledResourceInstalled(File targetBaseRoot, File targetEvidenceRoot) {
