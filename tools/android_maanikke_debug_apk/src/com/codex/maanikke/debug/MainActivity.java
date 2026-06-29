@@ -526,6 +526,19 @@ public final class MainActivity extends Activity {
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 dp(32)
         ));
+
+        TextView settingsButton = pillText("⚙", 0xffe8efff, 0xff2563eb);
+        settingsButton.setTextSize(22);
+        settingsButton.setContentDescription("全局设置");
+        settingsButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                switchPage(PAGE_SETTINGS);
+            }
+        });
+        LinearLayout.LayoutParams settingsParams = new LinearLayout.LayoutParams(dp(42), dp(32));
+        settingsParams.leftMargin = dp(8);
+        header.addView(settingsButton, settingsParams);
     }
 
     private void buildHomePage(LinearLayout content) {
@@ -566,26 +579,24 @@ public final class MainActivity extends Activity {
         actionValueText = addMetric(metricRow1, "动作", "-");
         stateValueText = phaseText;
 
-        LinearLayout baseCard = cardLayout(0xffffffff, 0x1f000000);
-        LinearLayout.LayoutParams baseParams = new LinearLayout.LayoutParams(
+        LinearLayout backgroundCard = cardLayout(0xffffffff, 0x1f000000);
+        LinearLayout.LayoutParams backgroundParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        baseParams.topMargin = dp(12);
-        content.addView(baseCard, baseParams);
+        backgroundParams.topMargin = dp(12);
+        content.addView(backgroundCard, backgroundParams);
 
-        TextView baseTitle = sectionLabel("基础参数");
-        baseCard.addView(baseTitle, new LinearLayout.LayoutParams(
+        TextView backgroundTitle = sectionLabel("开屏选项");
+        backgroundCard.addView(backgroundTitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
-        addInfoRow(baseCard, "运行模式", "App 内 16:9 虚拟显示");
-        addInfoRow(baseCard, "控制器", "root / Shizuku / app_process / ImageReader");
-        addInfoRow(baseCard, "显示容器", "1280 x 720 @ 160dpi");
-        addInfoRow(baseCard, "目标客户端", "自动解析 NIKKE 包名");
-        addInfoRow(baseCard, "资源目录", "Documents/MaaNikke/resource/base");
-        addInfoRow(baseCard, "APK 资源", "assets/MaaSync/MaaResource / assets/MaaSync/OcrEvidence");
-        addInfoRow(baseCard, "安全边界", "登录/网络异常交给用户处理");
+        addBackendModeRow(backgroundCard);
+        addDivider(backgroundCard);
+        addDebugModeRow(backgroundCard);
+        addDivider(backgroundCard);
+        addBackgroundModeRow(backgroundCard);
 
         LinearLayout profileCard = cardLayout(0xffffffff, 0x1f000000);
         LinearLayout.LayoutParams profileParams = new LinearLayout.LayoutParams(
@@ -602,61 +613,42 @@ public final class MainActivity extends Activity {
         ));
         profileModeText = addInfoRow(profileCard, "Profile", buildProfileModeText());
         addInfoRow(profileCard, "任务目录", TaskCatalog.enabledCount() + " / " + TaskCatalog.PC_TASKS.length + " 已启用");
-        addInfoRow(profileCard, "截图链路", "LocalSocket JPEG 流式预览");
-        addInfoRow(profileCard, "结果分类", "pass / needs_user / fail");
+        addInfoRow(profileCard, "显示容器", "1280 x 720 @ 160dpi");
+        addInfoRow(profileCard, "资源目录", "Documents/MaaNikke/resource/base");
 
-        addAboutCard(content);
-
-        LinearLayout backgroundCard = cardLayout(0xffffffff, 0x1f000000);
-        LinearLayout.LayoutParams backgroundParams = new LinearLayout.LayoutParams(
+        LinearLayout quickCard = cardLayout(0xffffffff, 0x1f000000);
+        LinearLayout.LayoutParams quickParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        backgroundParams.topMargin = dp(12);
-        content.addView(backgroundCard, backgroundParams);
+        quickParams.topMargin = dp(12);
+        content.addView(quickCard, quickParams);
 
-        TextView backgroundTitle = sectionLabel("运行模式");
-        backgroundCard.addView(backgroundTitle, new LinearLayout.LayoutParams(
+        TextView quickTitle = sectionLabel("资源与权限");
+        quickCard.addView(quickTitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
-        addBackendModeRow(backgroundCard);
-        addDebugModeRow(backgroundCard);
-        addBackgroundModeRow(backgroundCard);
-
-        LinearLayout permissionCard = cardLayout(0xffffffff, 0x1f000000);
-        LinearLayout.LayoutParams permissionParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        permissionParams.topMargin = dp(12);
-        content.addView(permissionCard, permissionParams);
-
-        TextView permissionTitle = sectionLabel("权限管理");
-        permissionCard.addView(permissionTitle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        ));
-        shizukuPermissionText = addPermissionRow(permissionCard, "Shizuku 权限管理", "检查中", new View.OnClickListener() {
+        addActionRow(quickCard, "运行环境预检",
+                "只读检查控制器、存储、目标包、资源和 OCR 证据。", "预检", new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        runRuntimeCapabilityPrecheck();
+                    }
+                });
+        addDivider(quickCard);
+        shizukuPermissionText = addPermissionRow(quickCard, "Shizuku 权限管理", "检查中", new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 requestOrOpenShizukuManagement();
             }
         });
-        addDivider(permissionCard);
-        addActionRow(permissionCard, "Shizuku 通道检测",
+        addDivider(quickCard);
+        addActionRow(quickCard, "Shizuku 通道检测",
                 "验证授权、shell 身份和 /data/local/tmp 写入能力。", "检测", new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
                         testShizukuBackendChannel();
-                    }
-                });
-        addActionRow(permissionCard, "\u8fd0\u884c\u73af\u5883\u9884\u68c0",
-                "Readonly check: controller, temp/public storage, target package, resource and evidence.",
-                "\u9884\u68c0", new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        runRuntimeCapabilityPrecheck();
                     }
                 });
         permissionExpandText = actionText(getPreferencesStore().getBoolean(PREF_PERMISSION_EXPANDED, false)
@@ -670,14 +662,14 @@ public final class MainActivity extends Activity {
                         || permissionExtraContainer.getVisibility() != View.VISIBLE);
             }
         });
-        permissionCard.addView(permissionExpandText, new LinearLayout.LayoutParams(
+        quickCard.addView(permissionExpandText, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(42)
         ));
 
         permissionExtraContainer = new LinearLayout(this);
         permissionExtraContainer.setOrientation(LinearLayout.VERTICAL);
-        permissionCard.addView(permissionExtraContainer, new LinearLayout.LayoutParams(
+        quickCard.addView(permissionExtraContainer, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
@@ -706,6 +698,8 @@ public final class MainActivity extends Activity {
             }
         });
         setPermissionExpanded(getPreferencesStore().getBoolean(PREF_PERMISSION_EXPANDED, false));
+
+        addAboutCard(content);
     }
 
     private void buildTaskPage(LinearLayout content) {
@@ -1230,7 +1224,7 @@ public final class MainActivity extends Activity {
     }
 
     private void buildSettingsPage(LinearLayout content) {
-        content.addView(pageTitle("通知设置"), new LinearLayout.LayoutParams(
+        content.addView(pageTitle("全局设置"), new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
@@ -2793,7 +2787,7 @@ public final class MainActivity extends Activity {
         nav.addView(navItem("首页", PAGE_HOME), new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
         nav.addView(navItem("后台任务", PAGE_TASKS), new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
         nav.addView(navItem("定时任务", PAGE_LOGS), new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
-        nav.addView(navItem("通知", PAGE_SETTINGS), new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
+        nav.addView(navItem("设置", PAGE_SETTINGS), new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
         return nav;
     }
 
