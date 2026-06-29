@@ -1224,7 +1224,7 @@ public final class MainActivity extends Activity {
     }
 
     private void buildSettingsPage(LinearLayout content) {
-        content.addView(pageTitle("全局设置"), new LinearLayout.LayoutParams(
+        content.addView(pageTitle("通知设置"), new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
@@ -2787,7 +2787,7 @@ public final class MainActivity extends Activity {
         nav.addView(navItem("首页", PAGE_HOME), new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
         nav.addView(navItem("后台任务", PAGE_TASKS), new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
         nav.addView(navItem("定时任务", PAGE_LOGS), new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
-        nav.addView(navItem("设置", PAGE_SETTINGS), new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
+        nav.addView(navItem("通知", PAGE_SETTINGS), new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
         return nav;
     }
 
