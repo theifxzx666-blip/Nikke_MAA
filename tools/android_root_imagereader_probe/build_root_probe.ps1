@@ -1,6 +1,7 @@
 param(
     [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path,
-    [string]$OutDir = (Join-Path $ProjectRoot 'outputs\android_probe\root_ir_probe')
+    [string]$OutDir = (Join-Path $ProjectRoot 'outputs\android_probe\root_ir_probe'),
+    [switch]$SkipNative
 )
 
 $ErrorActionPreference = 'Stop'
@@ -32,8 +33,12 @@ $env:Path = "$androidHome\platform-tools;$androidHome\cmdline-tools\latest\bin;$
 $javac = Join-Path $javaHome 'bin\javac.exe'
 $jar = Join-Path $javaHome 'bin\jar.exe'
 $d8 = Join-Path $buildTools 'd8.bat'
+$cmake = Join-Path $androidHome 'cmake\4.1.2\bin\cmake.exe'
+$ninja = Join-Path $androidHome 'cmake\4.1.2\bin\ninja.exe'
+$ndkRoot = Join-Path $androidHome 'ndk\26.2.11394342'
+$ndkToolchain = Join-Path $ndkRoot 'build\cmake\android.toolchain.cmake'
 
-foreach ($path in @($javac, $jar, $d8, $androidJar)) {
+foreach ($path in @($javac, $jar, $d8, $androidJar, $cmake, $ninja, $ndkToolchain)) {
     if (-not (Test-Path -LiteralPath $path)) {
         throw "Missing required build path: $path"
     }
@@ -43,7 +48,9 @@ $buildDir = Join-Path $PSScriptRoot 'build'
 $classesDir = Join-Path $buildDir 'classes'
 $classesJar = Join-Path $buildDir 'classes.jar'
 $dexDir = Join-Path $buildDir 'dex'
+$nativeBuildDir = Join-Path $buildDir 'native-arm64-v8a'
 $outJar = Join-Path $OutDir 'maanikke-root-ir-probe.jar'
+$outBridge = Join-Path $OutDir 'libmaanikke_maacore_bridge.so'
 
 Remove-Item -LiteralPath $buildDir -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $classesDir, $dexDir, $OutDir | Out-Null
@@ -67,4 +74,24 @@ try {
     Pop-Location
 }
 
+if ($SkipNative) {
+    if (-not (Test-Path -LiteralPath $outBridge)) {
+        throw "SkipNative requested but MaaCore bridge is missing: $outBridge"
+    }
+} else {
+    Invoke-Native $cmake @(
+        '-S', (Join-Path $PSScriptRoot 'native'),
+        '-B', $nativeBuildDir,
+        '-G', 'Ninja',
+        "-DCMAKE_MAKE_PROGRAM=$ninja",
+        "-DCMAKE_TOOLCHAIN_FILE=$ndkToolchain",
+        '-DANDROID_ABI=arm64-v8a',
+        '-DANDROID_PLATFORM=android-26',
+        '-DCMAKE_BUILD_TYPE=RelWithDebInfo'
+    )
+    Invoke-Native $cmake @('--build', $nativeBuildDir, '--target', 'maanikke_maacore_bridge')
+    Copy-Item -LiteralPath (Join-Path $nativeBuildDir 'libmaanikke_maacore_bridge.so') -Destination $outBridge -Force
+}
+
 Write-Host "DEX jar: $outJar"
+Write-Host "MaaCore bridge: $outBridge$(if ($SkipNative) { ' (reused)' } else { '' })"

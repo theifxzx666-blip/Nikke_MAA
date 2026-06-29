@@ -162,7 +162,7 @@ foreach ($taskNameRaw in $tasks) {
             Show-VirtualDisplay -DisplayId $displayId -TaskName $taskName
             $displayShown = $true
         }
-        if ($phase -eq 'finished') {
+        if ($phase -eq 'finished' -or $phase -like 'preview_keep_alive_*') {
             break
         }
     } while ((Get-Date) -lt $deadline)

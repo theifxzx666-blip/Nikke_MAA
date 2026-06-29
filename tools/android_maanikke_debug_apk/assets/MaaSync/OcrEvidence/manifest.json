@@ -1,0 +1,170 @@
+{
+  "version": 2,
+  "generated_at": "2026-06-29",
+  "purpose": "ocr_and_template_evidence_for_android_debug_apk",
+  "resolution": [1280, 720],
+  "coordinate_mode": "absolute-v1",
+  "resource_baseline": {
+    "name": "MaaNikke PC resource/base",
+    "version": "v2.0.9",
+    "path": "C:/Users/Administrator/Desktop/MaaNikke-win-x86_64-v2.0.9/resource/base"
+  },
+  "items": [
+    {
+      "name": "mail_after_open_for_apk.png",
+      "path": "full/mail_after_open_for_apk.png",
+      "source": "outputs/android_probe/mail_after_open_for_apk.png",
+      "task": "claim_mail",
+      "capture_state": "mail_page_opened",
+      "source_display_id": "android_virtual_display",
+      "resolution": [1280, 720],
+      "pipeline_refs": [
+        {
+          "file": "pipeline/task/claimmail.json",
+          "node": "checkmail",
+          "type": "OCR",
+          "roi": [569, 55, 159, 97],
+          "expected_text": ["邮箱"]
+        },
+        {
+          "file": "pipeline/task/claimmail.json",
+          "node": "claimthings",
+          "type": "OCR",
+          "roi": [593, 541, 252, 135],
+          "expected_text": ["全部领取"]
+        }
+      ],
+      "note": "Mail open frame used for OCR gate verification."
+    },
+    {
+      "name": "mail_after_open_marked.png",
+      "path": "marked/mail_after_open_marked.png",
+      "source": "outputs/android_probe/mail_after_open_marked.png",
+      "task": "claim_mail",
+      "capture_state": "mail_page_opened_marked",
+      "source_display_id": "android_virtual_display",
+      "resolution": [1280, 720],
+      "pipeline_refs": [
+        {
+          "file": "pipeline/task/claimmail.json",
+          "node": "checkmail",
+          "type": "OCR",
+          "roi": [569, 55, 159, 97],
+          "expected_text": ["邮箱"]
+        },
+        {
+          "file": "pipeline/task/claimmail.json",
+          "node": "claimthings",
+          "type": "OCR",
+          "roi": [593, 541, 252, 135],
+          "expected_text": ["全部领取"]
+        }
+      ],
+      "note": "Marked OCR regions for mail title and claim button."
+    },
+    {
+      "name": "mail_final_home_for_apk.png",
+      "path": "full/mail_final_home_for_apk.png",
+      "source": "outputs/android_probe/mail_final_home_for_apk.png",
+      "task": "claim_mail",
+      "capture_state": "home_clear_after_mail",
+      "source_display_id": "android_virtual_display",
+      "resolution": [1280, 720],
+      "pipeline_refs": [
+        {
+          "file": "pipeline/task/backtohomepage.json",
+          "node": "home_gate",
+          "type": "ReferenceFrame",
+          "roi": [],
+          "expected_text": []
+        }
+      ],
+      "note": "Home-clear reference frame after returning from mail."
+    },
+    {
+      "name": "debug_inquiry_frame_after_home_fix.png",
+      "path": "full/debug_inquiry_frame_after_home_fix.png",
+      "source": "outputs/android_probe/debug_inquiry_frame_after_home_fix.png",
+      "task": "claim_inquiry_and_gift",
+      "capture_state": "inquiry_flow_home_clear",
+      "source_display_id": "android_virtual_display",
+      "resolution": [1280, 720],
+      "pipeline_refs": [
+        {
+          "file": "pipeline/task/inquiryandgift.json",
+          "node": "1keytoinquiry",
+          "type": "OCR",
+          "roi": [1176, 650, 100, 57],
+          "expected_text": ["批量咨询"],
+          "status": "reference_roi_from_pc_pipeline"
+        },
+        {
+          "file": "pipeline/task/inquiryandgift.json",
+          "node": "click1keytoinquiry",
+          "type": "OCR",
+          "roi": [726, 601, 114, 55],
+          "expected_text": ["批量咨询"],
+          "status": "reference_roi_from_pc_pipeline"
+        }
+      ],
+      "note": "Inquiry flow home-clear verification frame; ROI refs document expected gates for future inquiry screenshots."
+    },
+    {
+      "name": "debug_dispatch_frame_after_wait2.png",
+      "path": "full/debug_dispatch_frame_after_wait2.png",
+      "source": "outputs/android_probe/debug_dispatch_frame_after_wait2.png",
+      "task": "claim_dispatch_board",
+      "capture_state": "dispatch_board_opened",
+      "source_display_id": "android_virtual_display",
+      "resolution": [1280, 720],
+      "pipeline_refs": [
+        {
+          "file": "pipeline/task/dispatchboard.json",
+          "node": "checkdispatchboard",
+          "type": "OCR",
+          "roi": [482, 88, 112, 41],
+          "expected_text": ["派遣公告栏"]
+        },
+        {
+          "file": "pipeline/task/dispatchboard.json",
+          "node": "claimall",
+          "type": "OCR",
+          "roi": [702, 575, 110, 56],
+          "expected_text": ["全部领取"]
+        },
+        {
+          "file": "pipeline/task/dispatchboard.json",
+          "node": "dispatchall",
+          "type": "OCR",
+          "roi": [582, 580, 118, 54],
+          "expected_text": ["全部派遣"]
+        }
+      ],
+      "note": "Dispatch board OCR verification frame."
+    }
+  ],
+  "pending_evidence": [
+    {
+      "task": "claim_interception",
+      "capture_state": "quick_battle_button_enabled",
+      "pipeline_ref": "pipeline/task/interception.json#quickbattle",
+      "roi": [642, 582, 193, 55],
+      "expected_text": ["快速战斗", "每周快速战斗"],
+      "reason": "Need a fresh frame with remaining sweep attempts; current evidence only confirms no-attempt/disabled state."
+    },
+    {
+      "task": "claim_free_shop",
+      "capture_state": "free_refresh_or_free_reward",
+      "pipeline_ref": "pipeline/task/freeshopdaily.json",
+      "expected_text": ["免费", "点击领取", "点击领取奖励", "领取奖励"],
+      "reason": "Need a clear Android frame for free refresh and free reward confirmation."
+    },
+    {
+      "task": "claim_outpost_defense",
+      "capture_state": "outpost_reward_or_wipeout_button",
+      "pipeline_ref": "pipeline/task/outpostdefense.json",
+      "expected_text": ["一键歼灭", "领取"],
+      "reason": "Need a clear Android frame for the final safe debug gate."
+    }
+  ]
+}

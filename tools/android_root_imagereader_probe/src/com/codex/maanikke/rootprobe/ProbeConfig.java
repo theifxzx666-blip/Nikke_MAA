@@ -16,6 +16,13 @@ final class ProbeConfig {
     static final int LEGACY_FRAME_FILE_INTERVAL_MS = 1000;
     static final int PREVIEW_CLIENT_HEARTBEAT_MS = 900;
     static final int PREVIEW_CLIENT_IDLE_TIMEOUT_MS = 30000;
+    static final int TOUCH_DOWN_UP_MS = 180;
+    static final int TAP_SETTLE_MS = 450;
+    static final int KEY_DOWN_UP_MS = 120;
+    static final int KEY_SETTLE_MS = 260;
+    static final int STABLE_FRAME_MIN_NONZERO_SAMPLES = 2500;
+    static final int STABLE_FRAME_REQUIRED_STREAK = 3;
+    static final int STABLE_SCENE_WAIT_SECONDS = 5;
     static final String VD_NAME = "MaaNikkeRootIR-1280x720";
     static final String DEFAULT_TARGET_PACKAGE = "com.tencent.nikke";
     static final String DEFAULT_TARGET_ACTIVITY = ".default_Activity";
@@ -52,7 +59,55 @@ final class ProbeConfig {
     static final File TASK_AFTER_MAIL_OPEN_FILE = new File("/data/local/tmp/maanikke_task_after_mail_open.png");
     static final File TASK_AFTER_MAIL_CLAIM_FILE = new File("/data/local/tmp/maanikke_task_after_mail_claim.png");
     static final File TASK_AFTER_MAIL_CONFIRM_FILE = new File("/data/local/tmp/maanikke_task_after_mail_confirm.png");
+    static final File TASK_AFTER_GIFT_CONFIRM_FILE = new File("/data/local/tmp/maanikke_task_after_gift_confirm.png");
     static final File TASK_OPTIONS_FILE = new File("/data/local/tmp/maanikke_task_options.properties");
+    static final File MAACORE_PROBE_REPORT_FILE = new File("/data/local/tmp/maanikke_maacore_probe_report.txt");
+    static final String[] MAACORE_RESOURCE_CANDIDATES = new String[]{
+            "/storage/emulated/0/Documents/MaaNikke/resource/base",
+            "/storage/emulated/0/Documents/MaaNikke/resource",
+            "/data/local/tmp/maanikke_resource/base",
+            "/data/local/tmp/maanikke_resource"
+    };
+    static final String[] MAACORE_LIBRARY_CANDIDATES = new String[]{
+            "/data/local/tmp/libMaaCore.so",
+            "/data/local/tmp/libMaaFramework.so",
+            "/data/local/tmp/maacore/libMaaCore.so",
+            "/data/local/tmp/maacore/libMaaFramework.so",
+            "/storage/emulated/0/Documents/MaaNikke/lib/libMaaCore.so",
+            "/storage/emulated/0/Documents/MaaNikke/lib/libMaaFramework.so",
+            "/storage/emulated/0/Documents/MaaNikke/maa/libMaaCore.so",
+            "/storage/emulated/0/Documents/MaaNikke/maa/libMaaFramework.so"
+    };
+    static final String[] MAACORE_CONTROL_UNIT_CANDIDATES = new String[]{
+            "/data/local/tmp/maacore/libMaaAndroidNativeControlUnit.so",
+            "/data/local/tmp/libMaaAndroidNativeControlUnit.so",
+            "/storage/emulated/0/Documents/MaaNikke/lib/libMaaAndroidNativeControlUnit.so",
+            "/storage/emulated/0/Documents/MaaNikke/maa/libMaaAndroidNativeControlUnit.so"
+    };
+    static final String[] MAACORE_BRIDGE_CANDIDATES = new String[]{
+            "/data/local/tmp/libmaanikke_maacore_bridge.so",
+            "/storage/emulated/0/Documents/MaaNikke/lib/libmaanikke_maacore_bridge.so"
+    };
+    static final String[] MAACORE_RESOURCE_VERSION_CANDIDATES = new String[]{
+            "/storage/emulated/0/Documents/MaaNikke/resource/resource-version.txt",
+            "/storage/emulated/0/Documents/MaaNikke/resource/base/resource-version.txt",
+            "/data/local/tmp/maanikke_resource/resource-version.txt",
+            "/data/local/tmp/maanikke_resource/base/resource-version.txt"
+    };
+    static final String[] MAACORE_EVIDENCE_CASES_CANDIDATES = new String[]{
+            "/storage/emulated/0/Documents/MaaNikke/resource/evidence/ocr_regression_cases.json",
+            "/storage/emulated/0/Documents/MaaNikke/resource/OcrEvidence/ocr_regression_cases.json",
+            "/data/local/tmp/maanikke_resource/evidence/ocr_regression_cases.json",
+            "/data/local/tmp/maanikke_resource/OcrEvidence/ocr_regression_cases.json"
+    };
+    static final String[] MAACORE_NCNN_OCR_RELATIVE_CANDIDATES = new String[]{
+            "PaddleOCR",
+            "PaddleCharOCR",
+            "base/PaddleOCR",
+            "base/PaddleCharOCR",
+            "resource/PaddleOCR",
+            "resource/PaddleCharOCR"
+    };
     static final File ANNOUNCEMENT_SEVEN_DAY_MARKER =
             new File("/data/local/tmp/maanikke_announcement_7day_checked.txt");
 
@@ -79,8 +134,8 @@ final class ProbeConfig {
     static final int HOME_POPUP_OUTSIDE_RIGHT_Y = 360;
     static final int HOME_POPUP_BOTTOM_X = 640;
     static final int HOME_POPUP_BOTTOM_Y = 685;
-    static final int HOME_LOBBY_X = 640;
-    static final int HOME_LOBBY_Y = 690;
+    static final int HOME_LOBBY_X = 108;
+    static final int HOME_LOBBY_Y = 675;
     static final int HOME_NOTICE_LIST_CLOSE_X = 804;
     static final int HOME_NOTICE_LIST_CLOSE_Y = 74;
     static final int EXIT_CONFIRM_CANCEL_X = 555;
@@ -125,6 +180,20 @@ final class ProbeConfig {
     static final int SHOP_BUY_CONFIRM_Y = 594;
     static final int SHOP_REWARD_CONFIRM_X = 640;
     static final int SHOP_REWARD_CONFIRM_Y = 452;
+    static final int SHOP_FREE_REFRESH_X = 156;
+    static final int SHOP_FREE_REFRESH_Y = 326;
+    static final int SHOP_REFRESH_CONFIRM_X = 730;
+    static final int SHOP_REFRESH_CONFIRM_Y = 452;
+    static final int SHOP_BACK_X = 22;
+    static final int SHOP_BACK_Y = 677;
+    static final int SHOP_TAB_BASIC_X = 30;
+    static final int SHOP_TAB_BASIC_Y = 300;
+    static final int SHOP_TAB_ARENA_X = 30;
+    static final int SHOP_TAB_ARENA_Y = 370;
+    static final int SHOP_TAB_BODY_TAG_X = 30;
+    static final int SHOP_TAB_BODY_TAG_Y = 440;
+    static final int SHOP_TAB_SCRAP_X = 30;
+    static final int SHOP_TAB_SCRAP_Y = 510;
     static final int OUTPOST_ENTRY_X = 386;
     static final int OUTPOST_ENTRY_Y = 590;
     static final int OUTPOST_GET_REWARD_X = 720;
@@ -143,6 +212,12 @@ final class ProbeConfig {
     static final int OUTPOST_REWARD_CONFIRM_Y = 500;
     static final int DISPATCH_BOARD_ENTRY_X = 464;
     static final int DISPATCH_BOARD_ENTRY_Y = 582;
+    static final int DISPATCH_CLAIM_ALL_X = 755;
+    static final int DISPATCH_CLAIM_ALL_Y = 610;
+    static final int DISPATCH_ALL_X = 640;
+    static final int DISPATCH_ALL_Y = 610;
+    static final int DISPATCH_CONFIRM_X = 640;
+    static final int DISPATCH_CONFIRM_Y = 610;
     static final int NIKKES_ENTRY_X = 495;
     static final int NIKKES_ENTRY_Y = 668;
     static final int NIKKES_INQUIRY_TAB_X = 1215;
@@ -161,8 +236,8 @@ final class ProbeConfig {
     static final int INQUIRY_NEXT_STEP_Y = 560;
     static final int INQUIRY_CLOSE_X = 792;
     static final int INQUIRY_CLOSE_Y = 676;
-    static final int INQUIRY_GIFT_BUTTON_X = 640;
-    static final int INQUIRY_GIFT_BUTTON_Y = 598;
+    static final int INQUIRY_GIFT_BUTTON_X = 545;
+    static final int INQUIRY_GIFT_BUTTON_Y = 581;
     static final int INQUIRY_BASIC_GIFT_X = 510;
     static final int INQUIRY_BASIC_GIFT_Y = 372;
     static final int INQUIRY_SEND_GIFT_X = 780;
@@ -171,6 +246,12 @@ final class ProbeConfig {
     static final int INQUIRY_SEND_GIFT_CONFIRM_Y = 452;
     static final int INQUIRY_GIFT_BACK_X = 32;
     static final int INQUIRY_GIFT_BACK_Y = 675;
+    static final int INQUIRY_HOME_X = 108;
+    static final int INQUIRY_HOME_Y = 675;
+    static final int LEFT_BOTTOM_HOME_X = 108;
+    static final int LEFT_BOTTOM_HOME_Y = 675;
+    static final int BOTTOM_HOME_X = 640;
+    static final int BOTTOM_HOME_Y = 675;
     static final int REHABILITATION_ENTRY_X = 74;
     static final int REHABILITATION_ENTRY_Y = 86;
     static final int ITEM_BAR_ENTRY_X = 712;
@@ -179,8 +260,10 @@ final class ProbeConfig {
     static final int TEAM_RECRUIT_ENTRY_Y = 672;
     static final int ARK_ENTRY_X = 904;
     static final int ARK_ENTRY_Y = 474;
-    static final int ARENA_ENTRY_X = 750;
-    static final int ARENA_ENTRY_Y = 528;
+    static final int ARENA_ENTRY_X = 739;
+    static final int ARENA_ENTRY_Y = 444;
+    static final int ARENA_ENTRY_CONFIRM_X = 750;
+    static final int ARENA_ENTRY_CONFIRM_Y = 528;
     static final int SIM_ROOM_ENTRY_X = 520;
     static final int SIM_ROOM_ENTRY_Y = 382;
     static final int SIM_ROOM_START_X = 640;
@@ -191,12 +274,31 @@ final class ProbeConfig {
     static final int SIM_ROOM_SKIP_BUFF_Y = 640;
     static final int SIM_ROOM_END_X = 640;
     static final int SIM_ROOM_END_Y = 517;
-    static final int INTERCEPTION_ENTRY_X = 904;
-    static final int INTERCEPTION_ENTRY_Y = 478;
+    static final int INTERCEPTION_ENTRY_X = 590;
+    static final int INTERCEPTION_ENTRY_Y = 564;
+    static final int INTERCEPTION_ANOMALY_X = 790;
+    static final int INTERCEPTION_ANOMALY_Y = 654;
+    static final int INTERCEPTION_BOSS_CHANGE_X = 728;
+    static final int INTERCEPTION_BOSS_CHANGE_Y = 259;
+    static final int INTERCEPTION_KRAKEN_X = 640;
+    static final int INTERCEPTION_KRAKEN_Y = 570;
+    static final int INTERCEPTION_QUICK_BATTLE_X = 735;
+    static final int INTERCEPTION_QUICK_BATTLE_Y = 610;
+    static final int INTERCEPTION_SWEEP_BUTTON_X = 735;
+    static final int INTERCEPTION_SWEEP_BUTTON_Y = 600;
+    static final int INTERCEPTION_CHALLENGE_BOSS_X = 735;
+    static final int INTERCEPTION_CHALLENGE_BOSS_Y = 663;
+    static final int INTERCEPTION_CONFIRM_X = 735;
+    static final int INTERCEPTION_CONFIRM_Y = 452;
+    static final int INTERCEPTION_REWARD_CONFIRM_X = 640;
+    static final int INTERCEPTION_REWARD_CONFIRM_Y = 452;
+    static final int INTERCEPTION_SWEEP_MAX_ATTEMPTS = 4;
     static final int CLIMB_TOWER_ENTRY_X = 760;
     static final int CLIMB_TOWER_ENTRY_Y = 250;
     static final int CLIMB_TOWER_SELECTOR_X = 103;
     static final int CLIMB_TOWER_SELECTOR_Y = 48;
+    static final int CLIMB_TOWER_CHOICE_BACK_X = 45;
+    static final int CLIMB_TOWER_CHOICE_BACK_Y = 680;
     static final int CLIMB_TOWER_UNLIMITED_X = 640;
     static final int CLIMB_TOWER_UNLIMITED_Y = 300;
     static final int CLIMB_TOWER_COMPANY_1_X = 783;
@@ -235,6 +337,8 @@ final class ProbeConfig {
     static final int UNION_RAID_ENTRY_Y = 594;
     static final int TEAM_BATTLE_ENTRY_X = 96;
     static final int TEAM_BATTLE_ENTRY_Y = 250;
+    static final int START_GAME_WORKFLOW_ATTACH_WAIT_SECONDS = 60;
+    static final int START_GAME_WORKFLOW_RESTART_WAIT_SECONDS = 75;
     static final int START_GAME_WAIT_SECONDS = 110;
     static final int BACK_TO_HOME_WAIT_SECONDS = 30;
     static final int BACK_TO_HOME_MAX_BACKS = 5;

@@ -78,7 +78,9 @@ import rikka.shizuku.Shizuku;
 
 public final class MainActivity extends Activity {
     private static final String ASSET_JAR = "maanikke-root-ir-probe.jar";
+    private static final String ASSET_MAACORE_BRIDGE = "libmaanikke_maacore_bridge.so";
     private static final String REMOTE_JAR = "/data/local/tmp/maanikke-root-ir-probe.jar";
+    private static final String REMOTE_MAACORE_BRIDGE = "/data/local/tmp/libmaanikke_maacore_bridge.so";
     private static final String REMOTE_RUNNER = "/data/local/tmp/maanikke_run_probe_env.sh";
     private static final String REMOTE_RESULT = "/data/local/tmp/maanikke_root_ir_result.txt";
     private static final String REMOTE_LOG = "/data/local/tmp/maanikke_root_ir_probe.log";
@@ -135,6 +137,16 @@ public final class MainActivity extends Activity {
     private static final String PUBLIC_LOG_DIR = "logs";
     private static final String PUBLIC_SCREENSHOT_DIR = "screenshots";
     private static final String PUBLIC_APK_DIR = "apk";
+    private static final String PUBLIC_RESOURCE_DIR = "resource";
+    private static final String PUBLIC_RESOURCE_BASE_DIR = "base";
+    private static final String PUBLIC_RESOURCE_EVIDENCE_DIR = "evidence";
+    private static final String PUBLIC_RESOURCE_STAMP_FILE = "resource-version.txt";
+    private static final String PUBLIC_RESOURCE_INTERFACE_FILE = "interface.json";
+    private static final String PUBLIC_RESOURCE_MANIFEST_FILE = "asset_manifest.json";
+    private static final String ASSET_MAA_RESOURCE_BASE = "MaaSync/MaaResource/resource/base";
+    private static final String ASSET_MAA_RESOURCE_INTERFACE = "MaaSync/MaaResource/interface.json";
+    private static final String ASSET_MAA_RESOURCE_MANIFEST = "MaaSync/asset_manifest.json";
+    private static final String ASSET_OCR_EVIDENCE_ROOT = "MaaSync/OcrEvidence";
     private static final String TEXT_WAITING_PREVIEW = "\u7b49\u5f85\u5b9e\u65f6\u753b\u9762";
     private static final String TEXT_STARTING_GAME = "\u6b63\u5728\u542f\u52a8\u6e38\u620f";
     private static final String TEXT_STOPPING_GAME = "\u6b63\u5728\u7ed3\u675f\u6e38\u620f";
@@ -166,6 +178,8 @@ public final class MainActivity extends Activity {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final AtomicBoolean previewRefreshing = new AtomicBoolean(false);
     private final AtomicBoolean previewRenderScheduled = new AtomicBoolean(false);
+    private final AtomicBoolean bundledResourceSyncScheduled = new AtomicBoolean(false);
+    private final Object bundledResourceLock = new Object();
     private final Object previewFrameLock = new Object();
     private final BitmapFactory.Options previewDecodeOptions = new BitmapFactory.Options();
     private final Runnable previewLoadingTicker = new Runnable() {
@@ -284,6 +298,7 @@ public final class MainActivity extends Activity {
         append("应用已就绪：已加载 MaaNikke PC 任务目录，Android 已适配 "
                 + TaskCatalog.enabledCount() + " / " + TaskCatalog.PC_TASKS.length + " 个入口。");
         refreshPermissionStatus();
+        scheduleBundledResourceSyncIfNeeded();
         handleIntent(getIntent());
     }
 
@@ -315,6 +330,8 @@ public final class MainActivity extends Activity {
             runBackendTask("back_to_home");
         } else if ("com.codex.maanikke.debug.RUN_HANDLE_UPDATE".equals(intent.getAction())) {
             runBackendTask("handle_update");
+        } else if ("com.codex.maanikke.debug.RUN_MAACORE_PROBE".equals(intent.getAction())) {
+            runBackendTask("maacore_probe");
         } else if ("com.codex.maanikke.debug.RUN_CLAIM_MAIL".equals(intent.getAction())) {
             runBackendTask("claim_mail");
         } else if ("com.codex.maanikke.debug.RUN_CLAIM_DAILY_REWARDS".equals(intent.getAction())) {
@@ -372,6 +389,7 @@ public final class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         refreshPermissionStatus();
+        scheduleBundledResourceSyncIfNeeded();
         if (!running && hasActiveBackendTaskQuietly()) {
             switchPage(PAGE_TASKS);
             setStatus("Preview", 0xff2563eb);
@@ -565,7 +583,8 @@ public final class MainActivity extends Activity {
         addInfoRow(baseCard, "控制器", "root / Shizuku / app_process / ImageReader");
         addInfoRow(baseCard, "显示容器", "1280 x 720 @ 160dpi");
         addInfoRow(baseCard, "目标客户端", "自动解析 NIKKE 包名");
-        addInfoRow(baseCard, "资源目录", "assets/MaaSync/MaaResource");
+        addInfoRow(baseCard, "资源目录", "Documents/MaaNikke/resource/base");
+        addInfoRow(baseCard, "APK 资源", "assets/MaaSync/MaaResource / assets/MaaSync/OcrEvidence");
         addInfoRow(baseCard, "安全边界", "登录/网络异常交给用户处理");
 
         LinearLayout profileCard = cardLayout(0xffffffff, 0x1f000000);
@@ -630,6 +649,14 @@ public final class MainActivity extends Activity {
                     @Override
                     public void onClick(View view) {
                         testShizukuBackendChannel();
+                    }
+                });
+        addActionRow(permissionCard, "\u8fd0\u884c\u73af\u5883\u9884\u68c0",
+                "Readonly check: controller, temp/public storage, target package, resource and evidence.",
+                "\u9884\u68c0", new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        runRuntimeCapabilityPrecheck();
                     }
                 });
         permissionExpandText = actionText(getPreferencesStore().getBoolean(PREF_PERMISSION_EXPANDED, false)
@@ -839,7 +866,7 @@ public final class MainActivity extends Activity {
         ));
 
         TextView taskHint = new TextView(this);
-        taskHint.setText("长按左侧排序柄拖动任务；点“明细”查看 PC entry、Android 适配状态和任务选项。");
+        taskHint.setText("长按左侧排序柄拖动任务；点齿轮设置任务参数，适配状态可在设置内查看。");
         taskHint.setTextSize(11);
         taskHint.setTextColor(0xff6b7280);
         taskHint.setPadding(0, dp(5), 0, dp(2));
@@ -994,7 +1021,7 @@ public final class MainActivity extends Activity {
         addDivider(card);
         addTaskActionRow(card, "竞技场", "visit_arena", "需确认，默认只进入任务入口。");
         addDivider(card);
-        addTaskActionRow(card, "拦截战", "visit_interception", "需确认，暂不扩展 Boss 策略。");
+        addTaskActionRow(card, "拦截战", "visit_interception", "需确认，当前仅克拉肯。");
         addDivider(card);
         addTaskActionRow(card, "爬塔", "visit_climb_tower", "需确认，优先用于每日任务。");
         return card;
@@ -1031,6 +1058,13 @@ public final class MainActivity extends Activity {
             @Override
             public void onClick(View view) {
                 runBackendTask("visit_mail");
+            }
+        });
+        addDivider(card);
+        addActionRow(card, "MaaCore探针", "只读检查安卓控制壳、截图帧、资源路径和后续 OCR 接入条件。", "执行", new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                runBackendTask("maacore_probe");
             }
         });
         addDivider(card);
@@ -1312,7 +1346,8 @@ public final class MainActivity extends Activity {
         addInfoRow(modeCard, "登录页", "login_required");
         addInfoRow(modeCard, "网络异常", "network_retry_required");
         addInfoRow(modeCard, "协同作战", "暂缓");
-        addInfoRow(modeCard, "真实领取", "调试模式关闭后启用");
+        addInfoRow(modeCard, "调试模式", "展示入口/红点/确认弹窗，跳过最终领取、购买、咨询确认和进入战斗");
+        addInfoRow(modeCard, "真实执行", "关闭调试模式后才会执行领取、购买或战斗确认");
 
         LinearLayout overrideCard = cardLayout(0xffffffff, 0x1f000000);
         LinearLayout.LayoutParams overrideParams = new LinearLayout.LayoutParams(
@@ -2158,7 +2193,7 @@ public final class MainActivity extends Activity {
         ));
 
         TextView subtitleView = new TextView(this);
-        subtitleView.setText(task.pcEntry + " 路 " + task.description);
+        subtitleView.setText(task.pcEntry + " - " + task.description);
         subtitleView.setTextSize(11);
         subtitleView.setTextColor(0xff6b7280);
         subtitleView.setSingleLine(false);
@@ -2168,17 +2203,17 @@ public final class MainActivity extends Activity {
         ));
         row.addView(copy, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
 
-        TextView chip = pillText("●", statusChipBackground(task.status, item.enabled),
-                statusChipForeground(task.status, item.enabled));
-        chip.setContentDescription("适配状态：" + task.status);
+        TextView chip = statusIndicator(task.status, item.enabled);
         LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(
-                dp(22),
-                dp(22)
+                dp(32),
+                dp(26)
         );
         chipParams.leftMargin = dp(8);
         row.addView(chip, chipParams);
 
-        TextView detailButton = pillText("明细", 0xffeef2ff, 0xff2563eb);
+        TextView detailButton = pillText("⚙", 0xffeef2ff, 0xff2563eb);
+        detailButton.setTextSize(16);
+        detailButton.setContentDescription("设置：" + task.name);
         detailButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -2186,7 +2221,7 @@ public final class MainActivity extends Activity {
             }
         });
         LinearLayout.LayoutParams detailParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
+                dp(42),
                 dp(26)
         );
         detailParams.leftMargin = dp(8);
@@ -2202,36 +2237,45 @@ public final class MainActivity extends Activity {
         return row;
     }
 
+    private TextView statusIndicator(String status, boolean enabled) {
+        TextView view = new TextView(this);
+        view.setText("●");
+        view.setTextSize(18);
+        view.setGravity(Gravity.CENTER);
+        view.setTextColor(statusChipForeground(status, enabled));
+        view.setBackground(roundedBackground(statusChipBackground(status, enabled), dp(13), 0));
+        view.setContentDescription("适配状态：" + status);
+        return view;
+    }
+
     private int statusChipBackground(String status, boolean enabled) {
+        if ("适配失败".equals(status)) {
+            return 0xffffeeee;
+        }
         if (!enabled) {
             return 0xffeeeeee;
         }
-        if ("已验证".equals(status) || "已适配".equals(status) || "安全适配".equals(status)
-                || "安全访问".equals(status)) {
+        if ("调试适配成功".equals(status)) {
             return 0xffe8f7f4;
         }
-        if ("待复测".equals(status) || "修复中".equals(status)) {
+        if ("暂未验证".equals(status)) {
             return 0xfffff2d5;
-        }
-        if ("只读适配".equals(status)) {
-            return 0xffeef2ff;
         }
         return 0xfff3f4f6;
     }
 
     private int statusChipForeground(String status, boolean enabled) {
+        if ("适配失败".equals(status)) {
+            return 0xffdc2626;
+        }
         if (!enabled) {
             return 0xff9ca3af;
         }
-        if ("已验证".equals(status) || "已适配".equals(status) || "安全适配".equals(status)
-                || "安全访问".equals(status)) {
+        if ("调试适配成功".equals(status)) {
             return 0xff0f766e;
         }
-        if ("待复测".equals(status) || "修复中".equals(status)) {
+        if ("暂未验证".equals(status)) {
             return 0xffb45309;
-        }
-        if ("只读适配".equals(status)) {
-            return 0xff2563eb;
         }
         return 0xff6b7280;
     }
@@ -2452,7 +2496,7 @@ public final class MainActivity extends Activity {
         addInfoRow(body, "适配状态", task.status);
         addInfoRow(body, "默认勾选", task.defaultChecked ? "是" : "否");
 
-        TextView optionTitle = sectionLabel("任务明细");
+        TextView optionTitle = sectionLabel("任务设置");
         LinearLayout.LayoutParams optionTitleParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -2502,7 +2546,7 @@ public final class MainActivity extends Activity {
                     OptionWidget widget = widgets.get(i);
                     saveTaskOptionValue(task.androidTaskId, widget.spec, widget.readValue());
                 }
-                append("已保存任务明细：" + task.name);
+                append("已保存任务设置：" + task.name);
             }
         });
         builder.show();
@@ -2883,6 +2927,16 @@ public final class MainActivity extends Activity {
             refreshPermissionStatus();
             return false;
         }
+        if (needsBundledResourceSync()) {
+            if (!hasStoragePermission()) {
+                append("APK 资源需要先解压到 Documents/MaaNikke/resource，请先授予文件访问权限。");
+                openStoragePermission();
+            } else {
+                append("APK 资源正在同步到 Documents/MaaNikke/resource，请稍后重试。");
+                scheduleBundledResourceSyncIfNeeded();
+            }
+            return false;
+        }
         return true;
     }
 
@@ -3071,6 +3125,84 @@ public final class MainActivity extends Activity {
                 }
             }
         });
+    }
+
+    private void runRuntimeCapabilityPrecheck() {
+        if (running) {
+            append("当前任务运行中，结束后再进行运行环境预检。");
+            return;
+        }
+        setButtons(false);
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    boolean shizukuInstalled = isPackageInstalled("moe.shizuku.privileged.api");
+                    boolean shizukuBinder = isShizukuBinderAlive();
+                    boolean shizukuPermission = hasShizukuPermission();
+                    append("运行环境预检开始：mode=" + buildBackendModeLabel()
+                            + ", shizukuInstalled=" + shizukuInstalled
+                            + ", shizukuBinder=" + shizukuBinder
+                            + ", shizukuPermission=" + shizukuPermission
+                            + ", appCanQueryNikke=" + canQueryNikkePackage());
+                    if (isShizukuBackend() && !shizukuBinder) {
+                        append("precheck shizukuBinder=missing");
+                        openShizukuManagement();
+                        return;
+                    }
+                    if (isShizukuBackend() && !shizukuPermission) {
+                        append("precheck shizukuPermission=missing");
+                        requestShizukuPermission();
+                        return;
+                    }
+                    String output = runBackendShellQuiet(buildRuntimeCapabilityPrecheckCommand());
+                    appendPrecheckLines(output);
+                } catch (Throwable error) {
+                    append("运行环境预检失败：" + error.getClass().getSimpleName() + ": " + error.getMessage());
+                } finally {
+                    refreshPermissionStatus();
+                    setButtons(true);
+                }
+            }
+        });
+    }
+
+    private String buildRuntimeCapabilityPrecheckCommand() {
+        StringBuilder command = new StringBuilder();
+        command.append("base=/storage/emulated/0/Documents/MaaNikke; ");
+        command.append("echo uid=\\\"$(id)\\\"; ");
+        command.append("tmp=/data/local/tmp/maanikke_precheck.txt; ");
+        command.append("if echo ok > $tmp 2>/dev/null && [ \\\"$(cat $tmp 2>/dev/null)\\\" = ok ]; then echo tmpWritable=yes; else echo tmpWritable=no; fi; ");
+        command.append("rm -f $tmp 2>/dev/null; ");
+        command.append("mkdir -p $base 2>/dev/null; pub=$base/.maanikke_precheck.txt; ");
+        command.append("if echo ok > $pub 2>/dev/null && [ \\\"$(cat $pub 2>/dev/null)\\\" = ok ]; then echo publicWritable=yes; else echo publicWritable=no; fi; ");
+        command.append("rm -f $pub 2>/dev/null; ");
+        command.append("echo targetPackage=\\\"$(for p in");
+        for (int i = 0; i < NIKKE_PACKAGE_CANDIDATES.length; i++) {
+            command.append(' ').append(NIKKE_PACKAGE_CANDIDATES[i]);
+        }
+        command.append("; do if cmd package path \\\"$p\\\" >/dev/null 2>&1; then echo \\\"$p\\\"; break; fi; done)\\\"; ");
+        command.append("echo resourceBase=\\\"$(if [ -d $base/resource/base ]; then echo yes; else echo no; fi)\\\"; ");
+        command.append("echo resourceVersion=\\\"$(cat $base/resource/resource-version.txt 2>/dev/null | head -n 1)\\\"; ");
+        command.append("echo evidenceCases=\\\"$(if [ -f $base/resource/evidence/ocr_regression_cases.json ]; then echo yes; else echo no; fi)\\\"; ");
+        command.append("echo coreLibrary=\\\"$(for f in /data/local/tmp/libMaaCore.so /data/local/tmp/libMaaFramework.so /data/local/tmp/maacore/libMaaCore.so /data/local/tmp/maacore/libMaaFramework.so $base/lib/libMaaCore.so $base/lib/libMaaFramework.so; do if [ -f \\\"$f\\\" ]; then echo \\\"$f\\\"; break; fi; done)\\\"; ");
+        command.append("echo controlUnit=\\\"$(for f in /data/local/tmp/maacore/libMaaAndroidNativeControlUnit.so /data/local/tmp/libMaaAndroidNativeControlUnit.so $base/lib/libMaaAndroidNativeControlUnit.so; do if [ -f \\\"$f\\\" ]; then echo \\\"$f\\\"; break; fi; done)\\\"; ");
+        command.append("echo bridge=\\\"$(for f in /data/local/tmp/libmaanikke_maacore_bridge.so $base/lib/libmaanikke_maacore_bridge.so; do if [ -f \\\"$f\\\" ]; then echo \\\"$f\\\"; break; fi; done)\\\"");
+        return command.toString();
+    }
+
+    private void appendPrecheckLines(String output) {
+        String[] lines = output == null ? new String[0] : output.split("\\r?\\n");
+        if (lines.length == 0) {
+            append("precheck output=empty");
+            return;
+        }
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i].trim();
+            if (line.length() > 0) {
+                append("precheck " + compactLogText(line));
+            }
+        }
     }
 
     private boolean canQueryNikkePackage() {
@@ -3685,7 +3817,7 @@ public final class MainActivity extends Activity {
     }
 
     private void stopBackend() {
-        if (!running) {
+        if (!running && !previewActive) {
             append("当前没有正在运行的任务。");
             return;
         }
@@ -3701,8 +3833,12 @@ public final class MainActivity extends Activity {
                     killMaaNikkeBackendProcesses();
                     forceStopDetectedNikke(true);
                     append("停止请求已执行：后端进程和 NIKKE 已停止。");
+                    setStatus("Stopped", 0xff7f1d1d);
+                    setPhase("用户已停止");
+                    setButtons(true);
                 } catch (Throwable error) {
                     append("停止失败：" + error.getClass().getSimpleName() + ": " + error.getMessage());
+                    setButtons(true);
                 }
             }
         });
@@ -3846,6 +3982,207 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private void scheduleBundledResourceSyncIfNeeded() {
+        if (!hasStoragePermission()) {
+            return;
+        }
+        if (!bundledResourceSyncScheduled.compareAndSet(false, true)) {
+            return;
+        }
+        controlExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    syncBundledResourcesIfNeeded();
+                } catch (Throwable error) {
+                    append("APK 资源同步失败：" + error.getClass().getSimpleName() + ": " + error.getMessage());
+                } finally {
+                    bundledResourceSyncScheduled.set(false);
+                }
+            }
+        });
+    }
+
+    private void syncBundledResourcesIfNeeded() throws Exception {
+        File resourceRoot = getPublicProjectDir(PUBLIC_RESOURCE_DIR);
+        File targetBaseRoot = new File(resourceRoot, PUBLIC_RESOURCE_BASE_DIR);
+        File targetEvidenceRoot = new File(resourceRoot, PUBLIC_RESOURCE_EVIDENCE_DIR);
+        File stampFile = new File(resourceRoot, PUBLIC_RESOURCE_STAMP_FILE);
+        String assetStamp = readBundledResourceAssetStamp();
+        String installedStamp = readTextFileQuiet(stampFile);
+        boolean resourceReady = isBundledResourceInstalled(targetBaseRoot, targetEvidenceRoot);
+        if (resourceReady && assetStamp.equals(installedStamp)) {
+            return;
+        }
+
+        synchronized (bundledResourceLock) {
+            resourceReady = isBundledResourceInstalled(targetBaseRoot, targetEvidenceRoot);
+            installedStamp = readTextFileQuiet(stampFile);
+            if (resourceReady && assetStamp.equals(installedStamp)) {
+                return;
+            }
+
+            ensurePublicProjectDirs();
+            clearDirectory(resourceRoot, null);
+            ensureDirectory(resourceRoot);
+
+            copyBundledAssetTree(ASSET_MAA_RESOURCE_BASE, targetBaseRoot);
+            copyBundledAssetTree(ASSET_OCR_EVIDENCE_ROOT, targetEvidenceRoot);
+            copyBundledAssetFile(ASSET_MAA_RESOURCE_INTERFACE,
+                    new File(resourceRoot, PUBLIC_RESOURCE_INTERFACE_FILE));
+            copyBundledAssetFile(ASSET_MAA_RESOURCE_MANIFEST,
+                    new File(resourceRoot, PUBLIC_RESOURCE_MANIFEST_FILE));
+
+            writeTextFile(stampFile, assetStamp);
+            append("APK 资源已同步到：" + targetBaseRoot.getAbsolutePath());
+        }
+    }
+
+    private boolean isBundledResourceInstalled(File targetBaseRoot, File targetEvidenceRoot) {
+        return new File(targetBaseRoot, "pipeline/task/startgame.json").exists()
+                && new File(targetBaseRoot, "model/ocr/rec.onnx").exists()
+                && new File(targetBaseRoot, "image/homebutton2.png").exists()
+                && new File(targetEvidenceRoot, "manifest.json").exists()
+                && new File(targetEvidenceRoot, "full/mail_after_open_for_apk.png").exists();
+    }
+
+    private String readBundledResourceAssetStamp() throws Exception {
+        String manifest = readAssetText(ASSET_MAA_RESOURCE_MANIFEST);
+        String interfaceJson = readAssetText(ASSET_MAA_RESOURCE_INTERFACE);
+        String ocrManifest = readAssetText(ASSET_OCR_EVIDENCE_ROOT + "/manifest.json");
+        PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+        long updateTime = info == null ? 0L : info.lastUpdateTime;
+        return updateTime + "|" + manifest.hashCode() + "|" + interfaceJson.hashCode() + "|" + ocrManifest.hashCode();
+    }
+
+    private boolean needsBundledResourceSync() {
+        try {
+            File resourceRoot = getPublicProjectDir(PUBLIC_RESOURCE_DIR);
+            File targetBaseRoot = new File(resourceRoot, PUBLIC_RESOURCE_BASE_DIR);
+            File targetEvidenceRoot = new File(resourceRoot, PUBLIC_RESOURCE_EVIDENCE_DIR);
+            File stampFile = new File(resourceRoot, PUBLIC_RESOURCE_STAMP_FILE);
+            String assetStamp = readBundledResourceAssetStamp();
+            return !assetStamp.equals(readTextFileQuiet(stampFile))
+                    || !isBundledResourceInstalled(targetBaseRoot, targetEvidenceRoot);
+        } catch (Throwable error) {
+            return true;
+        }
+    }
+
+    private void copyBundledAssetTree(String assetRoot, File targetRoot) throws Exception {
+        ensureDirectory(targetRoot);
+        copyBundledAssetTreeInternal(assetRoot, targetRoot);
+    }
+
+    private void copyBundledAssetTreeInternal(String assetPath, File targetDir) throws Exception {
+        String[] children = getAssets().list(assetPath);
+        if (children == null || children.length == 0) {
+            copyBundledAssetFile(assetPath, targetDir);
+            return;
+        }
+        ensureDirectory(targetDir);
+        for (int i = 0; i < children.length; i++) {
+            String child = children[i];
+            String childAssetPath = assetPath.length() == 0 ? child : assetPath + "/" + child;
+            File childTarget = new File(targetDir, child);
+            String[] grandchildren = getAssets().list(childAssetPath);
+            if (grandchildren != null && grandchildren.length > 0) {
+                copyBundledAssetTreeInternal(childAssetPath, childTarget);
+            } else {
+                copyBundledAssetFile(childAssetPath, childTarget);
+            }
+        }
+    }
+
+    private void copyBundledAssetFile(String assetPath, File targetFile) throws Exception {
+        ensureDirectory(targetFile.getParentFile());
+        InputStream input = getAssets().open(assetPath);
+        FileOutputStream output = new FileOutputStream(targetFile);
+        try {
+            byte[] buffer = new byte[32 * 1024];
+            int read;
+            while ((read = input.read(buffer)) >= 0) {
+                output.write(buffer, 0, read);
+            }
+        } finally {
+            try {
+                input.close();
+            } catch (Throwable ignored) {
+            }
+            try {
+                output.close();
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    private String readAssetText(String assetPath) throws Exception {
+        InputStream input = getAssets().open(assetPath);
+        try {
+            return new String(readStreamBytes(input), "UTF-8");
+        } finally {
+            input.close();
+        }
+    }
+
+    private String readTextFileQuiet(File file) {
+        try {
+            if (file == null || !file.exists()) {
+                return "";
+            }
+            return new String(readFileBytes(file), "UTF-8").trim();
+        } catch (Throwable ignored) {
+            return "";
+        }
+    }
+
+    private void writeTextFile(File target, String text) throws Exception {
+        ensureDirectory(target.getParentFile());
+        FileOutputStream output = new FileOutputStream(target);
+        try {
+            output.write(text == null ? new byte[0] : text.getBytes("UTF-8"));
+        } finally {
+            output.close();
+        }
+    }
+
+    private void ensureDirectory(File dir) throws Exception {
+        if (dir == null) {
+            return;
+        }
+        if (dir.exists()) {
+            return;
+        }
+        if (!dir.mkdirs() && !dir.exists()) {
+            throw new IllegalStateException("无法创建目录：" + dir.getAbsolutePath());
+        }
+    }
+
+    private void clearDirectory(File dir, String childName) throws Exception {
+        File target = childName == null || childName.length() == 0 ? dir : new File(dir, childName);
+        if (target == null || !target.exists()) {
+            return;
+        }
+        deleteRecursively(target);
+    }
+
+    private void deleteRecursively(File file) throws Exception {
+        if (file == null || !file.exists()) {
+            return;
+        }
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children != null) {
+                for (int i = 0; i < children.length; i++) {
+                    deleteRecursively(children[i]);
+                }
+            }
+        }
+        if (!file.delete() && file.exists()) {
+            throw new IllegalStateException("无法删除：" + file.getAbsolutePath());
+        }
+    }
+
     private void writeTaskOptionsFile() throws Exception {
         StringBuilder builder = new StringBuilder();
         builder.append("# MaaNikke task options generated by Android UI\n");
@@ -3863,7 +4200,7 @@ public final class MainActivity extends Activity {
             }
         }
         writeRemoteFile(REMOTE_TASK_OPTIONS, builder.toString().getBytes("UTF-8"), "666");
-        append("任务明细参数已同步到后端。");
+        append("任务设置参数已同步到后端。");
     }
 
     private void appendTaskOption(StringBuilder builder, String taskId, int optionIndex, String value) {
@@ -3962,7 +4299,13 @@ public final class MainActivity extends Activity {
 
     private void prepareBackendJarAndRunner(String mainClassAndArgs) throws Exception {
         writeRemoteFile(REMOTE_JAR, readAssetBytes(ASSET_JAR), "444");
-        append("后端运行包已写入 /data/local/tmp。");
+        try {
+            writeRemoteFile(REMOTE_MAACORE_BRIDGE, readAssetBytes(ASSET_MAACORE_BRIDGE), "555");
+            append("后端运行包与 MaaCore bridge 已写入 /data/local/tmp。");
+        } catch (Throwable error) {
+            append("MaaCore bridge 写入跳过：" + error.getClass().getSimpleName() + ": " + error.getMessage());
+            append("后端运行包已写入 /data/local/tmp。");
+        }
         writeRemoteRunner(mainClassAndArgs);
     }
 
@@ -4053,11 +4396,13 @@ public final class MainActivity extends Activity {
         File logs = new File(base, PUBLIC_LOG_DIR);
         File screenshots = new File(base, PUBLIC_SCREENSHOT_DIR);
         File apk = new File(base, PUBLIC_APK_DIR);
+        File resource = new File(base, PUBLIC_RESOURCE_DIR);
         String command = "mkdir -p "
                 + shellQuote(exports.getAbsolutePath()) + " "
                 + shellQuote(logs.getAbsolutePath()) + " "
                 + shellQuote(screenshots.getAbsolutePath()) + " "
-                + shellQuote(apk.getAbsolutePath());
+                + shellQuote(apk.getAbsolutePath()) + " "
+                + shellQuote(resource.getAbsolutePath());
         runBackendShell(command);
     }
 
@@ -4787,6 +5132,12 @@ public final class MainActivity extends Activity {
         if ("workflow_daily_safe_completed".equals(state)) {
             return "工作流已完成";
         }
+        if ("maacore_probe_ready_for_native_call".equals(state)) {
+            return "MaaCore探针已就绪，可接真实原生识别调用";
+        }
+        if ("maacore_probe_stub_ready_missing_resource_or_library".equals(state)) {
+            return "MaaCore探针已完成，仍缺资源目录或原生库";
+        }
         if ("visit_mail_page_no_claim_button".equals(state)) {
             return "邮箱页已打开，没有可领取按钮";
         }
@@ -4829,6 +5180,9 @@ public final class MainActivity extends Activity {
         if ("outpost_clean_sweep_red_dot_previewed".equals(state)) {
             return "前哨防御已打开一键歼灭入口，调试模式已跳过确认。";
         }
+        if ("outpost_reward_button_previewed".equals(state)) {
+            return "前哨防御累计奖励入口已打开，调试模式已跳过领取确认。";
+        }
         if ("claim_outpost_defense_still_home".equals(state)) {
             return "前哨防御页未打开，未执行领取";
         }
@@ -4847,8 +5201,26 @@ public final class MainActivity extends Activity {
         if ("free_shop_purchase_dialog_previewed".equals(state)) {
             return "商店购买弹窗已打开，调试模式已跳过购买确认";
         }
+        if ("free_shop_refresh_previewed".equals(state)) {
+            return "商店免费刷新确认弹窗已打开，调试模式已跳过刷新确认";
+        }
+        if ("free_shop_purchase_and_refresh_previewed".equals(state)) {
+            return "商店购买和免费刷新入口已打开，调试模式已跳过最终确认";
+        }
+        if ("free_shop_purchase_and_refresh_attempted".equals(state)) {
+            return "商店免费商品和免费刷新已尝试执行，请查看实时画面确认。";
+        }
         if ("inquiry_and_gift_red_dot_previewed".equals(state)) {
             return "咨询入口已打开，调试模式已跳过批量咨询确认";
+        }
+        if ("inquiry_and_gift_gift_previewed".equals(state)) {
+            return "咨询/送礼页面已打开，调试模式已跳过送礼确认。";
+        }
+        if ("inquiry_and_gift_claim_and_gift_attempted".equals(state)) {
+            return "咨询和送礼已尝试执行，请查看实时画面确认。";
+        }
+        if ("claim_inquiry_and_gift_still_home".equals(state)) {
+            return "咨询/送礼页未打开，未执行操作。";
         }
         if ("sim_room_red_dot_previewed".equals(state)) {
             return "模拟室页面已打开，调试模式已跳过快速操作。";
@@ -4857,7 +5229,7 @@ public final class MainActivity extends Activity {
             return "爬塔页面已打开，调试模式已跳过进入战斗";
         }
         if ("climb_tower_battle_previewed".equals(state)) {
-            return "爬塔目标已打开，调试模式已跳过进入战斗";
+            return "爬塔目标页已打开，调试模式已跳过进入战斗";
         }
         if ("climb_tower_attempted".equals(state)) {
             return "爬塔战斗已尝试执行";
@@ -4873,6 +5245,15 @@ public final class MainActivity extends Activity {
         }
         if ("visit_daily_rewards_popup_visible".equals(state)) {
             return "每日/每周任务页已打开，未领取";
+        }
+        if ("visit_paid_shop_opened".equals(state)) {
+            return "付费商店页已打开，调试模式未领取。";
+        }
+        if ("visit_dispatch_board_popup_visible".equals(state)) {
+            return "派遣公告栏弹窗已打开，调试模式未确认派遣。";
+        }
+        if ("manual_confirm_interception_opened".equals(state)) {
+            return "拦截战页面已打开，调试模式未进入战斗。";
         }
         if ("no_update_or_download_dialog".equals(state)) {
             return "没有发现更新或下载确认弹窗。";
@@ -4914,6 +5295,9 @@ public final class MainActivity extends Activity {
         if ("handle_update".equals(task)) {
             return "处理更新";
         }
+        if ("maacore_probe".equals(task)) {
+            return "MaaCore探针";
+        }
         if ("visit_mail".equals(task)) {
             return "访问邮箱";
         }
@@ -4931,6 +5315,42 @@ public final class MainActivity extends Activity {
         }
         if ("claim_pass_rewards".equals(task)) {
             return "领取 PASS 奖励";
+        }
+        if ("debug_claim_mail".equals(task)) {
+            return "调试邮件奖励";
+        }
+        if ("debug_claim_daily_rewards".equals(task)) {
+            return "调试每日/每周奖励";
+        }
+        if ("debug_claim_friend_points".equals(task)) {
+            return "调试好友点数";
+        }
+        if ("debug_claim_outpost_defense".equals(task)) {
+            return "调试前哨防御";
+        }
+        if ("debug_claim_pass_rewards".equals(task)) {
+            return "调试 PASS 奖励";
+        }
+        if ("debug_claim_free_shop".equals(task)) {
+            return "调试道具商店";
+        }
+        if ("debug_claim_inquiry_and_gift".equals(task)) {
+            return "调试咨询/送礼";
+        }
+        if ("debug_claim_sim_room".equals(task)) {
+            return "调试模拟室";
+        }
+        if ("debug_claim_climb_tower".equals(task)) {
+            return "调试爬塔";
+        }
+        if ("visit_paid_shop".equals(task)) {
+            return "访问付费商店";
+        }
+        if ("visit_dispatch_board".equals(task)) {
+            return "访问派遣公告栏";
+        }
+        if ("visit_interception".equals(task)) {
+            return "访问拦截战";
         }
         if ("visit_daily_rewards".equals(task)) {
             return "访问每日/每周奖励";
@@ -5172,7 +5592,7 @@ public final class MainActivity extends Activity {
                 if (logExportButton != null) {
                     logExportButton.setEnabled(enabled);
                 }
-                stopButton.setEnabled(!enabled);
+                stopButton.setEnabled(!enabled || previewActive);
                 for (int i = 0; i < workflowItems.size(); i++) {
                     WorkflowItem item = workflowItems.get(i);
                     if (item.checkBox != null) {

@@ -28,6 +28,8 @@
 - 实时预览使用 `PreviewFrameServer` 的 LocalSocket/JPEG 流式预览，不要退回高频 PNG 文件轮询。
 - 后端临时文件使用 `/data/local/tmp/maanikke_*`。
 - 用户可见长期文件统一放入 `/storage/emulated/0/Documents/MaaNikke/`。
+- APK 内置资源首次启动/升级后同步到 `/storage/emulated/0/Documents/MaaNikke/resource/`；`base/` 放 PC MaaNikke `resource/base`，`evidence/` 放 OCR 证据截图和 `ocr_regression_cases.json`，`resource-version.txt` 作为版本标记。
+- 当前主线是“Android 控制壳 + MaaCore/MAA 资源执行层”：APK 继续负责虚拟显示、截图、输入、调试模式和证据导出；页面识别、OCR、模板匹配、pipeline 分支和 option override 后续优先迁到 MaaCore / MaaFramework。
 
 ## 任务约束
 
@@ -43,6 +45,9 @@
 ```powershell
 # 构建 APK，并重建 root/ImageReader 后端 jar
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\tools\android_maanikke_debug_apk\build_debug_apk.ps1
+
+# 本地 OCR 证据 ROI 回归，不连接设备、不点击游戏
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\tools\android_maanikke_debug_apk\scripts\validate_ocr_evidence.ps1
 
 # 安装 APK
 & "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" -s 2fb37497 install -r .\outputs\android_probe\apk\MaaNikkeAndroidDebug.apk
@@ -65,6 +70,12 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\tools\android_
 4. dry run：打印将要执行的节点、坐标、等待和回退路径。
 5. 单任务真实点击：先跑单个任务，不直接跑完整每日链路。
 6. 完整流程：调试模式先跑，稳定后再关闭调试模式验证真实领取。
+
+## 当前状态
+
+- 2026-06-29：OCR 证据回归与 MaaCoreProbe 增强已同步。`validate_ocr_evidence.ps1` 可校验 JSON、图片尺寸、ROI 边界并裁剪 ROI；混合工作区证据 `outputs/android_probe/ocr_regression_20260629-110536/` 显示 5 个启用 ROI 通过、2 个禁用待补。
+- 2026-06-29：只读实机探针 `outputs/android_probe/maacore_probe_enhanced_20260629-111420/` 返回 `finalState=maacore_probe_native_ocr_ready`、`actionCount=0`、`coreReady=true`、`controlUnitReady=true`、`evidenceCasesReady=true`、`missingEvidenceCount=2`、`bridgeOcrSucceeded=true`。
+- App 设置页新增只读“运行环境预检”入口，用当前控制器模式检查 Shizuku/root shell、`/data/local/tmp`、`Documents/MaaNikke`、目标游戏包、资源目录、证据文件和 MaaCore 相关库；该入口只写日志，不启动游戏、不创建虚拟显示、不点击任务。
 
 ## Git 约定
 

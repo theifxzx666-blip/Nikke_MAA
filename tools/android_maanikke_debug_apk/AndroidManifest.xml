@@ -76,6 +76,10 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
             <intent-filter>
+                <action android:name="com.codex.maanikke.debug.RUN_MAACORE_PROBE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
                 <action android:name="com.codex.maanikke.debug.RUN_CLAIM_MAIL" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>

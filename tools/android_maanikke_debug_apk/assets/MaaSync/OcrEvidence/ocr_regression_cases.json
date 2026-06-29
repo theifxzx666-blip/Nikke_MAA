@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "generated_at": "2026-06-29",
+  "coordinate_mode": "absolute-v1",
+  "resolution": [1280, 720],
+  "resource_baseline": "C:/Users/Administrator/Desktop/MaaNikke-win-x86_64-v2.0.9/resource/base",
+  "cases": [
+    {
+      "id": "mail_title",
+      "task": "claim_mail",
+      "image": "full/mail_after_open_for_apk.png",
+      "pipeline": "pipeline/task/claimmail.json",
+      "node": "checkmail",
+      "type": "OCR",
+      "roi": [569, 55, 159, 97],
+      "expected_text": ["邮箱"],
+      "allow_partial": true,
+      "risk": "low"
+    },
+    {
+      "id": "mail_claim_all",
+      "task": "claim_mail",
+      "image": "full/mail_after_open_for_apk.png",
+      "pipeline": "pipeline/task/claimmail.json",
+      "node": "claimthings",
+      "type": "OCR",
+      "roi": [593, 541, 252, 135],
+      "expected_text": ["全部领取"],
+      "allow_partial": true,
+      "risk": "claim_confirm_debug_only"
+    },
+    {
+      "id": "dispatch_board_title",
+      "task": "claim_dispatch_board",
+      "image": "full/debug_dispatch_frame_after_wait2.png",
+      "pipeline": "pipeline/task/dispatchboard.json",
+      "node": "checkdispatchboard",
+      "type": "OCR",
+      "roi": [482, 88, 112, 41],
+      "expected_text": ["派遣公告栏"],
+      "allow_partial": true,
+      "risk": "low"
+    },
+    {
+      "id": "dispatch_claim_all",
+      "task": "claim_dispatch_board",
+      "image": "full/debug_dispatch_frame_after_wait2.png",
+      "pipeline": "pipeline/task/dispatchboard.json",
+      "node": "claimall",
+      "type": "OCR",
+      "roi": [702, 575, 110, 56],
+      "expected_text": ["全部领取"],
+      "allow_partial": true,
+      "risk": "claim_confirm_debug_only"
+    },
+    {
+      "id": "dispatch_all",
+      "task": "claim_dispatch_board",
+      "image": "full/debug_dispatch_frame_after_wait2.png",
+      "pipeline": "pipeline/task/dispatchboard.json",
+      "node": "dispatchall",
+      "type": "OCR",
+      "roi": [582, 580, 118, 54],
+      "expected_text": ["全部派遣"],
+      "allow_partial": true,
+      "risk": "dispatch_confirm_debug_only"
+    },
+    {
+      "id": "inquiry_batch_entry",
+      "task": "claim_inquiry_and_gift",
+      "image": "full/debug_inquiry_frame_after_home_fix.png",
+      "pipeline": "pipeline/task/inquiryandgift.json",
+      "node": "1keytoinquiry",
+      "type": "OCR",
+      "roi": [1176, 650, 100, 57],
+      "expected_text": ["批量咨询"],
+      "allow_partial": true,
+      "risk": "needs_fresh_inquiry_page_frame",
+      "enabled": false
+    },
+    {
+      "id": "interception_quick_battle",
+      "task": "claim_interception",
+      "image": "pending",
+      "pipeline": "pipeline/task/interception.json",
+      "node": "quickbattle",
+      "type": "OCR",
+      "roi": [642, 582, 193, 55],
+      "expected_text": ["快速战斗", "每周快速战斗"],
+      "allow_partial": true,
+      "risk": "must_not_click_challenge_boss",
+      "enabled": false
+    }
+  ]
+}

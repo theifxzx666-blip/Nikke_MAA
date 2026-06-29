@@ -116,6 +116,12 @@ final class TaskProfile {
         if ("visit_inquiry_and_gift".equals(taskId)) {
             return debugMode ? "debug_claim_inquiry_and_gift" : "claim_inquiry_and_gift";
         }
+        if ("visit_dispatch_board".equals(taskId)) {
+            return debugMode ? "debug_claim_dispatch_board" : "claim_dispatch_board";
+        }
+        if ("visit_interception".equals(taskId)) {
+            return debugMode ? "debug_claim_interception" : "claim_interception";
+        }
         if ("visit_sim_room".equals(taskId)) {
             return debugMode ? "debug_claim_sim_room" : "claim_sim_room";
         }

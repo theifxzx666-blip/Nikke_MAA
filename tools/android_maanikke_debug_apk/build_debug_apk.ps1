@@ -1,6 +1,7 @@
 param(
     [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path,
-    [string]$OutDir = (Join-Path $ProjectRoot 'outputs\android_probe\apk')
+    [string]$OutDir = (Join-Path $ProjectRoot 'outputs\android_probe\apk'),
+    [switch]$SkipRootNativeBuild
 )
 
 $ErrorActionPreference = 'Stop'
@@ -54,6 +55,7 @@ $alignedApk = Join-Path $buildDir 'maanikke-debug-aligned.apk'
 $signedApk = Join-Path $OutDir 'MaaNikkeAndroidDebug.apk'
 $keystore = Join-Path $OutDir 'maanikke-debug.jks'
 $rootProbeJar = Join-Path $ProjectRoot 'outputs\android_probe\root_ir_probe\maanikke-root-ir-probe.jar'
+$maaCoreBridge = Join-Path $ProjectRoot 'outputs\android_probe\root_ir_probe\libmaanikke_maacore_bridge.so'
 $shizukuDir = Join-Path $srcRoot 'third_party\shizuku'
 $shizukuAidlJar = Join-Path $shizukuDir 'aidl\classes.jar'
 $shizukuApiJar = Join-Path $shizukuDir 'api\classes.jar'
@@ -67,13 +69,29 @@ foreach ($path in @($shizukuAidlJar, $shizukuApiJar, $shizukuProviderJar, $shizu
 }
 
 Remove-Item -LiteralPath $rootProbeJar -Force -ErrorAction SilentlyContinue
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ProjectRoot 'tools\android_root_imagereader_probe\build_root_probe.ps1') -ProjectRoot $ProjectRoot
+$rootBuildArgs = @(
+    '-NoLogo',
+    '-NoProfile',
+    '-ExecutionPolicy',
+    'Bypass',
+    '-File',
+    (Join-Path $ProjectRoot 'tools\android_root_imagereader_probe\build_root_probe.ps1'),
+    '-ProjectRoot',
+    $ProjectRoot
+)
+if ($SkipRootNativeBuild) {
+    $rootBuildArgs += '-SkipNative'
+}
+powershell.exe @rootBuildArgs
 if ($LASTEXITCODE -ne 0) {
     throw "Root backend build failed with exit code $LASTEXITCODE"
 }
 
 if (-not (Test-Path -LiteralPath $rootProbeJar)) {
     throw "Missing root probe jar: $rootProbeJar"
+}
+if (-not (Test-Path -LiteralPath $maaCoreBridge)) {
+    throw "Missing MaaCore bridge: $maaCoreBridge"
 }
 
 Remove-Item -LiteralPath $buildDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -82,6 +100,7 @@ if (Test-Path -LiteralPath $sourceAssetsDir) {
     Copy-Item -Path (Join-Path $sourceAssetsDir '*') -Destination (Join-Path $assetsDir 'assets') -Recurse -Force
 }
 Copy-Item -LiteralPath $rootProbeJar -Destination (Join-Path $assetsDir 'assets\maanikke-root-ir-probe.jar') -Force
+Copy-Item -LiteralPath $maaCoreBridge -Destination (Join-Path $assetsDir 'assets\libmaanikke_maacore_bridge.so') -Force
 
 Invoke-Native $aapt2 @('compile', '--dir', (Join-Path $srcRoot 'res'), '-o', (Join-Path $buildDir 'res.zip'))
 
