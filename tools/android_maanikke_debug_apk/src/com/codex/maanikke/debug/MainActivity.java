@@ -595,6 +595,59 @@ public final class MainActivity extends Activity {
         addDebugModeRow(commonCard);
         addDivider(commonCard);
         addBackgroundModeRow(commonCard);
+
+        LinearLayout permissionCard = cardLayout(0xffffffff, 0x1f000000);
+        LinearLayout.LayoutParams permissionParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        permissionParams.topMargin = dp(12);
+        content.addView(permissionCard, permissionParams);
+
+        TextView permissionTitle = sectionLabel("权限管理");
+        permissionCard.addView(permissionTitle, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        shizukuPermissionText = addPermissionRow(permissionCard, "Shizuku 权限管理", "检查中",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        requestOrOpenShizukuManagement();
+                    }
+                });
+        addDivider(permissionCard);
+        storagePermissionText = addPermissionRow(permissionCard, "存储权限", "检查中",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        openStoragePermission();
+                    }
+                });
+        addDivider(permissionCard);
+        packageListPermissionText = addPermissionRow(permissionCard, "应用安装列表获取", "检查中",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        openAppDetails();
+                    }
+                });
+        addDivider(permissionCard);
+        notificationPermissionText = addPermissionRow(permissionCard, "通知权限", "检查中",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        openNotificationPermission();
+                    }
+                });
+        addDivider(permissionCard);
+        batteryPermissionText = addPermissionRow(permissionCard, "后台保活", "检查中",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        openBatterySettings();
+                    }
+                });
     }
 
     private void buildTaskPage(LinearLayout content) {
@@ -1345,38 +1398,6 @@ public final class MainActivity extends Activity {
                         runRuntimeCapabilityPrecheck();
                     }
                 });
-        addDivider(otherCard);
-        shizukuPermissionText = addPermissionRow(otherCard, "Shizuku 权限管理", "检查中",
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        requestOrOpenShizukuManagement();
-                    }
-                });
-        addDivider(otherCard);
-        storagePermissionText = addPermissionRow(otherCard, "存储权限", "检查中",
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        openStoragePermission();
-                    }
-                });
-        addDivider(otherCard);
-        notificationPermissionText = addPermissionRow(otherCard, "通知权限", "检查中",
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        openNotificationPermission();
-                    }
-                });
-        addDivider(otherCard);
-        batteryPermissionText = addPermissionRow(otherCard, "后台保活", "检查中",
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        openBatterySettings();
-                    }
-                });
 
         LinearLayout dataCard = cardLayout(0xffffffff, 0x1f000000);
         content.addView(dataCard, stackedCardParams(dp(12)));
@@ -2101,7 +2122,7 @@ public final class MainActivity extends Activity {
         if (title.indexOf("Shizuku") >= 0) {
             return "优先使用，用于管理 Shizuku 服务和本应用授权。";
         }
-        if (title.indexOf("瀛樺偍") >= 0) {
+        if (title.indexOf("存储") >= 0 || title.indexOf("瀛樺偍") >= 0) {
             return "用于导出日志、截图和任务证据。";
         }
         if (title.indexOf("安装列表") >= 0) {
