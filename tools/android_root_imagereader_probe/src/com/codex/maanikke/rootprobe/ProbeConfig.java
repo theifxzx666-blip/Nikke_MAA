@@ -17,12 +17,20 @@ final class ProbeConfig {
     static final int PREVIEW_CLIENT_HEARTBEAT_MS = 900;
     static final int PREVIEW_CLIENT_IDLE_TIMEOUT_MS = 30000;
     static final int TOUCH_DOWN_UP_MS = 180;
-    static final int TAP_SETTLE_MS = 450;
+    static final int TAP_SETTLE_MS = 650;
     static final int KEY_DOWN_UP_MS = 120;
-    static final int KEY_SETTLE_MS = 260;
+    static final int KEY_SETTLE_MS = 360;
     static final int STABLE_FRAME_MIN_NONZERO_SAMPLES = 2500;
     static final int STABLE_FRAME_REQUIRED_STREAK = 3;
-    static final int STABLE_SCENE_WAIT_SECONDS = 5;
+    static final int STABLE_SCENE_WAIT_SECONDS = 6;
+    static final int ENTRY_PAGE_WAIT_ATTEMPTS = 8;
+    static final int ENTRY_PAGE_WAIT_INTERVAL_MS = 1200;
+    static final int HOME_RETURN_SETTLE_MS = 1700;
+    static final int ARK_HUB_WAIT_ATTEMPTS = 8;
+    static final int ARK_HUB_WAIT_INTERVAL_MS = 1100;
+    static final int ARK_SUBPAGE_WAIT_ATTEMPTS = 11;
+    static final int ARK_SUBPAGE_FIRST_WAIT_MS = 2200;
+    static final int ARK_SUBPAGE_WAIT_INTERVAL_MS = 1100;
     static final String VD_NAME = "MaaNikkeRootIR-1280x720";
     static final String DEFAULT_TARGET_PACKAGE = "com.tencent.nikke";
     static final String DEFAULT_TARGET_ACTIVITY = ".default_Activity";
@@ -61,6 +69,8 @@ final class ProbeConfig {
     static final File TASK_AFTER_MAIL_CONFIRM_FILE = new File("/data/local/tmp/maanikke_task_after_mail_confirm.png");
     static final File TASK_AFTER_GIFT_CONFIRM_FILE = new File("/data/local/tmp/maanikke_task_after_gift_confirm.png");
     static final File TASK_OPTIONS_FILE = new File("/data/local/tmp/maanikke_task_options.properties");
+    static final File DAILY_ACTION_LEDGER_FILE =
+            new File("/storage/emulated/0/Documents/MaaNikke/logs/daily-action-ledger.tsv");
     static final File MAACORE_PROBE_REPORT_FILE = new File("/data/local/tmp/maanikke_maacore_probe_report.txt");
     static final String[] MAACORE_RESOURCE_CANDIDATES = new String[]{
             "/storage/emulated/0/Documents/MaaNikke/resource/base",

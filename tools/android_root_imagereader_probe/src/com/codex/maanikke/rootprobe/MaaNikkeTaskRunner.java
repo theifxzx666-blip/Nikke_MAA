@@ -723,13 +723,13 @@ public final class MaaNikkeTaskRunner {
             } else if (isMailPageVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)) {
                 tap(input, ProbeConfig.MAIL_CLOSE_X, ProbeConfig.MAIL_CLOSE_Y,
                         "back_to_home_mail_close");
-                Thread.sleep(1200);
+                Thread.sleep(ProbeConfig.HOME_RETURN_SETTLE_MS);
                 capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_BACK_FILE);
                 copyFile(ProbeConfig.TASK_AFTER_BACK_FILE, ProbeConfig.TASK_FRAME_FILE);
             } else if (isShopPageVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)) {
                 tap(input, ProbeConfig.SHOP_BACK_X, ProbeConfig.SHOP_BACK_Y,
                         "back_to_home_shop_back");
-                Thread.sleep(1500);
+                Thread.sleep(ProbeConfig.HOME_RETURN_SETTLE_MS);
                 capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_BACK_FILE);
                 copyFile(ProbeConfig.TASK_AFTER_BACK_FILE, ProbeConfig.TASK_FRAME_FILE);
             }
@@ -755,7 +755,7 @@ public final class MaaNikkeTaskRunner {
                     tap(input, ProbeConfig.HOME_LOBBY_X, ProbeConfig.HOME_LOBBY_Y,
                             "back_to_home_lobby_final_retry_" + (attempt + 1));
                 }
-                Thread.sleep(1400);
+                Thread.sleep(ProbeConfig.HOME_RETURN_SETTLE_MS);
                 waitForStableScene(capture, ProbeConfig.STABLE_SCENE_WAIT_SECONDS,
                         "back_to_home_after_lobby_tap_" + attempt);
                 capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_BACK_FILE);
@@ -1247,17 +1247,17 @@ public final class MaaNikkeTaskRunner {
         }
         tap(input, ProbeConfig.HOME_LOBBY_X, ProbeConfig.HOME_LOBBY_Y,
                 "workflow_lobby_anchor_before_back_" + stepName);
-        Thread.sleep(1200);
+        Thread.sleep(ProbeConfig.HOME_RETURN_SETTLE_MS);
         if (tryFastReturnHomeForWorkflow(capture, input, stepName)) {
             return;
         }
         if ("visit_mail".equals(stepName) && isMailPageVisible(ProbeConfig.TASK_FRAME_FILE)) {
             tap(input, ProbeConfig.MAIL_CLOSE_X, ProbeConfig.MAIL_CLOSE_Y, "workflow_mail_close");
-            Thread.sleep(1200);
+            Thread.sleep(ProbeConfig.HOME_RETURN_SETTLE_MS);
         } else if (isShopPageVisible(ProbeConfig.TASK_FRAME_FILE)) {
             tap(input, ProbeConfig.SHOP_BACK_X, ProbeConfig.SHOP_BACK_Y,
                     "workflow_shop_back_" + stepName);
-            Thread.sleep(1500);
+            Thread.sleep(ProbeConfig.HOME_RETURN_SETTLE_MS);
         } else if (isInquiryPageVisible(ProbeConfig.TASK_FRAME_FILE)) {
             tapInquiryHome(capture, input, "workflow_inquiry_home_" + stepName);
         } else if (isEventRewardPageVisible(ProbeConfig.TASK_FRAME_FILE)) {
@@ -1267,7 +1267,7 @@ public final class MaaNikkeTaskRunner {
         } else {
             tap(input, ProbeConfig.HOME_LOBBY_X, ProbeConfig.HOME_LOBBY_Y,
                     "workflow_lobby_anchor_after_" + stepName);
-            Thread.sleep(1200);
+            Thread.sleep(ProbeConfig.HOME_RETURN_SETTLE_MS);
         }
         if (tryFastReturnHomeForWorkflow(capture, input, stepName)) {
             return;
@@ -1320,7 +1320,7 @@ public final class MaaNikkeTaskRunner {
                 tap(input, ProbeConfig.HOME_LOBBY_X, ProbeConfig.HOME_LOBBY_Y,
                         "workflow_fast_lobby_retry_" + stepName + "_" + (attempt + 1));
             }
-            Thread.sleep(1200);
+            Thread.sleep(ProbeConfig.HOME_RETURN_SETTLE_MS);
         }
         return false;
     }
@@ -1351,7 +1351,7 @@ public final class MaaNikkeTaskRunner {
                     && !isHomePopupVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)) {
                 tap(input, ProbeConfig.HOME_LOBBY_X, ProbeConfig.HOME_LOBBY_Y,
                         "workflow_lobby_anchor_" + stepName + "_" + attempt);
-                Thread.sleep(650);
+                Thread.sleep(900);
                 continue;
             }
             if (closeDebugPreviewDialogIfVisible(capture, input,
@@ -1372,7 +1372,7 @@ public final class MaaNikkeTaskRunner {
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
         copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
         if (isHomeClearVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)) {
-            Thread.sleep(900);
+            Thread.sleep(1200);
             capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
             copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
             finalState = "home_clear";
@@ -1544,36 +1544,48 @@ public final class MaaNikkeTaskRunner {
         tap(input, ProbeConfig.DAILY_REWARD_DAILY_TAB_X, ProbeConfig.DAILY_REWARD_DAILY_TAB_Y,
                 "daily_rewards_daily_tab");
         Thread.sleep(700);
-        tapDailyRewardClaimButton(capture, input, "daily_rewards_claim_all_daily", dryRun);
+        boolean dailyAttempted = tapDailyRewardClaimButton(capture, input,
+                "daily_rewards_claim_all_daily", "daily", dryRun);
 
         tap(input, ProbeConfig.DAILY_REWARD_WEEKLY_TAB_X, ProbeConfig.DAILY_REWARD_WEEKLY_TAB_Y,
                 "daily_rewards_weekly_tab");
         Thread.sleep(700);
-        tapDailyRewardClaimButton(capture, input, "daily_rewards_claim_all_weekly", dryRun);
+        boolean weeklyAttempted = tapDailyRewardClaimButton(capture, input,
+                "daily_rewards_claim_all_weekly", "weekly", dryRun);
 
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ACTION_FILE);
         copyFile(ProbeConfig.TASK_AFTER_ACTION_FILE, ProbeConfig.TASK_FRAME_FILE);
-        finalState = dryRun ? "daily_rewards_red_dot_previewed" : "daily_rewards_claim_attempted";
+        finalState = dryRun ? "daily_rewards_red_dot_previewed"
+                : (dailyAttempted || weeklyAttempted
+                ? "daily_rewards_claim_attempted"
+                : "daily_rewards_already_done_today");
         actionSuccess = true;
         logger.log("claim_daily_rewards completed dryRun=" + dryRun
                 + " with claim-all checks for daily and weekly tabs");
     }
 
-    private void tapDailyRewardClaimButton(FrameCaptureBackend capture, InputInjector input, String label,
-                                           boolean dryRun)
+    private boolean tapDailyRewardClaimButton(FrameCaptureBackend capture, InputInjector input, String label,
+                                             String guardAction, boolean dryRun)
             throws Exception {
         if (dryRun) {
             logger.log("debug dry-run skip daily reward claim tap label=" + label);
             capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
             copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
-            return;
+            return false;
         }
-        tap(input, ProbeConfig.DAILY_REWARD_CLAIM_ALL_X, ProbeConfig.DAILY_REWARD_CLAIM_ALL_Y, label);
+        if (!tapDailyFinalActionIfNeeded(input, "daily_rewards", guardAction,
+                ProbeConfig.DAILY_REWARD_CLAIM_ALL_X, ProbeConfig.DAILY_REWARD_CLAIM_ALL_Y, label)) {
+            logger.log("daily rewards final action skipped by daily guard label=" + label);
+            capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
+            copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+            return false;
+        }
         Thread.sleep(1000);
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
         copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
         closeGenericRewardConfirmIfVisible(capture, input, label + "_confirm",
                 ProbeConfig.DAILY_REWARD_CONFIRM_X, ProbeConfig.DAILY_REWARD_CONFIRM_Y);
+        return true;
     }
 
     private void runClaimFriendPointsTask(FrameCaptureBackend capture, InputInjector input, boolean dryRun)
@@ -1592,8 +1604,14 @@ public final class MaaNikkeTaskRunner {
         if (dryRun) {
             logger.log("debug dry-run skip friend one-key claim tap; red dot/page is visible");
         } else {
-            tap(input, ProbeConfig.FRIEND_ONE_KEY_CLAIM_X, ProbeConfig.FRIEND_ONE_KEY_CLAIM_Y,
-                    "friend_points_one_key_claim");
+            if (!tapDailyFinalActionIfNeeded(input, "friend_points", "one_key_claim",
+                    ProbeConfig.FRIEND_ONE_KEY_CLAIM_X, ProbeConfig.FRIEND_ONE_KEY_CLAIM_Y,
+                    "friend_points_one_key_claim")) {
+                finalState = "friend_points_already_done_today";
+                actionSuccess = true;
+                logger.log("claim_friend_points skipped by daily guard");
+                return;
+            }
             Thread.sleep(1000);
         }
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
@@ -1629,8 +1647,17 @@ public final class MaaNikkeTaskRunner {
             return;
         }
 
-        tap(input, ProbeConfig.OUTPOST_GET_REWARD_X, ProbeConfig.OUTPOST_GET_REWARD_Y,
-                "outpost_get_reward_first");
+        if (!dryRun && !tapDailyFinalActionIfNeeded(input, "outpost_defense", "reward_first",
+                ProbeConfig.OUTPOST_GET_REWARD_X, ProbeConfig.OUTPOST_GET_REWARD_Y,
+                "outpost_get_reward_first")) {
+            finalState = "outpost_reward_already_done_today";
+            actionSuccess = true;
+            logger.log("claim_outpost_defense skipped reward by daily guard");
+            return;
+        } else if (dryRun) {
+            tap(input, ProbeConfig.OUTPOST_GET_REWARD_X, ProbeConfig.OUTPOST_GET_REWARD_Y,
+                    "outpost_get_reward_first");
+        }
         Thread.sleep(1800);
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
         copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
@@ -1646,8 +1673,14 @@ public final class MaaNikkeTaskRunner {
                 "outpost_reward_close_candidate_first");
         Thread.sleep(1400);
 
-        tap(input, ProbeConfig.OUTPOST_CLEAN_SWEEP_X, ProbeConfig.OUTPOST_CLEAN_SWEEP_Y,
-                "outpost_clean_sweep");
+        if (!tapDailyFinalActionIfNeeded(input, "outpost_defense", "clean_sweep",
+                ProbeConfig.OUTPOST_CLEAN_SWEEP_X, ProbeConfig.OUTPOST_CLEAN_SWEEP_Y,
+                "outpost_clean_sweep")) {
+            finalState = "outpost_clean_sweep_already_done_today";
+            actionSuccess = true;
+            logger.log("claim_outpost_defense skipped clean-sweep by daily guard");
+            return;
+        }
         Thread.sleep(2400);
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
         copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
@@ -1678,8 +1711,14 @@ public final class MaaNikkeTaskRunner {
                 "outpost_clean_reward_close");
         Thread.sleep(1400);
 
-        tap(input, ProbeConfig.OUTPOST_GET_REWARD_X, ProbeConfig.OUTPOST_GET_REWARD_Y,
-                "outpost_get_reward_after_sweep");
+        if (!tapDailyFinalActionIfNeeded(input, "outpost_defense", "reward_after_sweep",
+                ProbeConfig.OUTPOST_GET_REWARD_X, ProbeConfig.OUTPOST_GET_REWARD_Y,
+                "outpost_get_reward_after_sweep")) {
+            finalState = "outpost_reward_after_sweep_already_done_today";
+            actionSuccess = true;
+            logger.log("claim_outpost_defense skipped reward after sweep by daily guard");
+            return;
+        }
         Thread.sleep(1400);
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
         copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
@@ -1791,13 +1830,21 @@ public final class MaaNikkeTaskRunner {
             handledAnyBranch = true;
             tap(input, ProbeConfig.SHOP_TAB_BASIC_X, ProbeConfig.SHOP_TAB_BASIC_Y, "free_shop_tab_basic");
             Thread.sleep(1000);
-            tap(input, ProbeConfig.SHOP_FREE_ITEM_X, ProbeConfig.SHOP_FREE_ITEM_Y,
-                    "free_shop_daily_discount_item");
-            Thread.sleep(1400);
-            capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
-            copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+            boolean purchaseGuarded = !dryRun
+                    && (shouldSkipDailyFinalAction("free_shop", "purchase_quantity")
+                    || shouldSkipDailyFinalAction("free_shop", "purchase_buy"));
+            boolean purchaseDialogVisible = false;
+            if (purchaseGuarded) {
+                logger.log("free shop purchase chain skipped by daily guard before opening item");
+            } else {
+                tap(input, ProbeConfig.SHOP_FREE_ITEM_X, ProbeConfig.SHOP_FREE_ITEM_Y,
+                        "free_shop_daily_discount_item");
+                Thread.sleep(1400);
+                capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
+                copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+                purchaseDialogVisible = isShopPurchaseDialogVisible(ProbeConfig.TASK_AFTER_WAIT_FILE);
+            }
 
-            boolean purchaseDialogVisible = isShopPurchaseDialogVisible(ProbeConfig.TASK_AFTER_WAIT_FILE);
             if (dryRun && purchaseDialogVisible) {
                 capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ACTION_FILE);
                 copyFile(ProbeConfig.TASK_AFTER_ACTION_FILE, ProbeConfig.TASK_FRAME_FILE);
@@ -1808,15 +1855,27 @@ public final class MaaNikkeTaskRunner {
             }
 
             if (purchaseDialogVisible) {
-                tap(input, ProbeConfig.SHOP_QUANTITY_CONFIRM_X, ProbeConfig.SHOP_QUANTITY_CONFIRM_Y,
-                        "free_shop_quantity_confirm_candidate");
+                if (!tapDailyFinalActionIfNeeded(input, "free_shop", "purchase_quantity",
+                        ProbeConfig.SHOP_QUANTITY_CONFIRM_X, ProbeConfig.SHOP_QUANTITY_CONFIRM_Y,
+                        "free_shop_quantity_confirm_candidate")) {
+                    finalState = "free_shop_purchase_already_done_today";
+                    actionSuccess = true;
+                    logger.log("free shop quantity confirm skipped by daily guard");
+                    return;
+                }
                 Thread.sleep(1400);
                 capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
                 copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
 
                 if (isShopPurchaseDialogVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)) {
-                    tap(input, ProbeConfig.SHOP_BUY_CONFIRM_X, ProbeConfig.SHOP_BUY_CONFIRM_Y,
-                            "free_shop_buy_confirm_candidate");
+                    if (!tapDailyFinalActionIfNeeded(input, "free_shop", "purchase_buy",
+                            ProbeConfig.SHOP_BUY_CONFIRM_X, ProbeConfig.SHOP_BUY_CONFIRM_Y,
+                            "free_shop_buy_confirm_candidate")) {
+                        finalState = "free_shop_purchase_already_done_today";
+                        actionSuccess = true;
+                        logger.log("free shop buy confirm skipped by daily guard");
+                        return;
+                    }
                     Thread.sleep(1800);
                     capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
                     copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
@@ -1831,11 +1890,16 @@ public final class MaaNikkeTaskRunner {
                 logger.log("free shop purchase dialog not visible; item may already be sold out, continue to refresh");
             }
 
-            tap(input, ProbeConfig.SHOP_FREE_REFRESH_X, ProbeConfig.SHOP_FREE_REFRESH_Y,
-                    "free_shop_refresh_candidate");
-            Thread.sleep(1500);
-            capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
-            copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+            boolean refreshGuarded = !dryRun && shouldSkipDailyFinalAction("free_shop", "refresh");
+            if (!refreshGuarded) {
+                tap(input, ProbeConfig.SHOP_FREE_REFRESH_X, ProbeConfig.SHOP_FREE_REFRESH_Y,
+                        "free_shop_refresh_candidate");
+                Thread.sleep(1500);
+                capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
+                copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+            } else {
+                logger.log("free shop refresh skipped by daily guard before opening confirm");
+            }
             if (dryRun) {
                 capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ACTION_FILE);
                 copyFile(ProbeConfig.TASK_AFTER_ACTION_FILE, ProbeConfig.TASK_FRAME_FILE);
@@ -1846,16 +1910,27 @@ public final class MaaNikkeTaskRunner {
                 logger.log("debug dry-run stopped after opening free shop refresh candidate");
                 return;
             }
-            if (isShopPurchaseDialogVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)
+            if (!refreshGuarded && (isShopPurchaseDialogVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)
                     || isDownloadConfirmVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)
-                    || isUpdateDialogVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)) {
-                tap(input, ProbeConfig.SHOP_REFRESH_CONFIRM_X, ProbeConfig.SHOP_REFRESH_CONFIRM_Y,
-                        "free_shop_refresh_confirm_candidate");
+                    || isUpdateDialogVisible(ProbeConfig.TASK_AFTER_WAIT_FILE))) {
+                if (!tapDailyFinalActionIfNeeded(input, "free_shop", "refresh",
+                        ProbeConfig.SHOP_REFRESH_CONFIRM_X, ProbeConfig.SHOP_REFRESH_CONFIRM_Y,
+                        "free_shop_refresh_confirm_candidate")) {
+                    finalState = "free_shop_refresh_already_done_today";
+                    actionSuccess = true;
+                    logger.log("free shop refresh confirm skipped by daily guard");
+                    return;
+                }
                 Thread.sleep(1900);
                 capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
                 copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
             } else {
                 logger.log("free shop refresh confirm not visible after refresh tap; skip confirm");
+                if (!dryRun && !refreshGuarded) {
+                    markDailyFinalActionDone("free_shop", "refresh",
+                            "free_shop_refresh_candidate_no_confirm");
+                    logger.log("free shop refresh recorded after candidate tap without confirm");
+                }
             }
         }
 
@@ -1955,7 +2030,13 @@ public final class MaaNikkeTaskRunner {
             copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
             return true;
         }
-        tap(input, ProbeConfig.PASS_CLAIM_ALL_X, ProbeConfig.PASS_CLAIM_ALL_Y, label);
+        if (!tapDailyFinalActionIfNeeded(input, "pass_rewards", label,
+                ProbeConfig.PASS_CLAIM_ALL_X, ProbeConfig.PASS_CLAIM_ALL_Y, label)) {
+            logger.log("pass claim skipped by daily guard label=" + label);
+            capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
+            copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+            return false;
+        }
         Thread.sleep(1200);
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
         copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
@@ -2120,16 +2201,20 @@ public final class MaaNikkeTaskRunner {
 
         boolean claimedAny = false;
         if (claimVisible) {
-            tap(input, ProbeConfig.DISPATCH_CLAIM_ALL_X, ProbeConfig.DISPATCH_CLAIM_ALL_Y,
-                    "dispatch_claim_all");
-            Thread.sleep(1800);
-            capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
-            copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
-            closeGenericRewardConfirmIfVisible(capture, input, "dispatch_claim_all_reward_confirm",
-                    ProbeConfig.DISPATCH_CONFIRM_X, ProbeConfig.DISPATCH_CONFIRM_Y);
-            claimedAny = true;
-            capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
-            copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+            if (tapDailyFinalActionIfNeeded(input, "dispatch_board", "claim_all",
+                    ProbeConfig.DISPATCH_CLAIM_ALL_X, ProbeConfig.DISPATCH_CLAIM_ALL_Y,
+                    "dispatch_claim_all")) {
+                Thread.sleep(1800);
+                capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
+                copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+                closeGenericRewardConfirmIfVisible(capture, input, "dispatch_claim_all_reward_confirm",
+                        ProbeConfig.DISPATCH_CONFIRM_X, ProbeConfig.DISPATCH_CONFIRM_Y);
+                claimedAny = true;
+                capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
+                copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+            } else {
+                logger.log("dispatch claim-all skipped by daily guard");
+            }
         }
 
         dispatchVisible = isDispatchBoardDispatchButtonVisible(ProbeConfig.TASK_AFTER_WAIT_FILE);
@@ -2148,14 +2233,31 @@ public final class MaaNikkeTaskRunner {
             return;
         }
 
-        tap(input, ProbeConfig.DISPATCH_ALL_X, ProbeConfig.DISPATCH_ALL_Y,
-                "dispatch_all");
+        if (shouldSkipDailyFinalAction("dispatch_board", "dispatch_all")) {
+            capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ACTION_FILE);
+            copyFile(ProbeConfig.TASK_AFTER_ACTION_FILE, ProbeConfig.TASK_FRAME_FILE);
+            finalState = claimedAny
+                    ? "dispatch_board_claim_only_attempted"
+                    : "dispatch_board_dispatch_already_done_today";
+            actionSuccess = true;
+            logger.log("dispatch-all skipped by daily guard before opening confirm");
+            return;
+        }
+        tap(input, ProbeConfig.DISPATCH_ALL_X, ProbeConfig.DISPATCH_ALL_Y, "dispatch_all");
         Thread.sleep(1700);
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
         copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
         if (isDispatchBoardDispatchConfirmVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)) {
-            tap(input, ProbeConfig.DISPATCH_CONFIRM_X, ProbeConfig.DISPATCH_CONFIRM_Y,
-                    "dispatch_all_confirm_candidate");
+            if (!tapDailyFinalActionIfNeeded(input, "dispatch_board", "dispatch_all",
+                    ProbeConfig.DISPATCH_CONFIRM_X, ProbeConfig.DISPATCH_CONFIRM_Y,
+                    "dispatch_all_confirm_candidate")) {
+                finalState = claimedAny
+                        ? "dispatch_board_claim_only_attempted"
+                        : "dispatch_board_dispatch_already_done_today";
+                actionSuccess = true;
+                logger.log("dispatch-all confirm skipped by daily guard");
+                return;
+            }
             Thread.sleep(2000);
         } else {
             logger.log("dispatch board dispatch confirm dialog not visible after dispatch-all tap");
@@ -2229,22 +2331,29 @@ public final class MaaNikkeTaskRunner {
                 runGiftForTopNikke(capture, input, 0, true);
             }
         } else {
-            tap(input, ProbeConfig.INQUIRY_BATCH_CONFIRM_X, ProbeConfig.INQUIRY_BATCH_CONFIRM_Y,
-                    "inquiry_batch_confirm");
-            Thread.sleep(2400);
-            for (int attempt = 1; attempt <= 3; attempt++) {
-                tap(input, ProbeConfig.INQUIRY_NEXT_STEP_X, ProbeConfig.INQUIRY_NEXT_STEP_Y,
-                        "inquiry_next_step_or_reward_" + attempt);
-                Thread.sleep(1400);
-                capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
-                copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
-                if (isInquiryPageVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)) {
-                    break;
+            if (tapDailyFinalActionIfNeeded(input, "inquiry_and_gift", "batch_consult",
+                    ProbeConfig.INQUIRY_BATCH_CONFIRM_X, ProbeConfig.INQUIRY_BATCH_CONFIRM_Y,
+                    "inquiry_batch_confirm")) {
+                Thread.sleep(2400);
+                for (int attempt = 1; attempt <= 3; attempt++) {
+                    tap(input, ProbeConfig.INQUIRY_NEXT_STEP_X, ProbeConfig.INQUIRY_NEXT_STEP_Y,
+                            "inquiry_next_step_or_reward_" + attempt);
+                    Thread.sleep(1400);
+                    capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
+                    copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+                    if (isInquiryPageVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)) {
+                        break;
+                    }
                 }
+                tap(input, ProbeConfig.INQUIRY_CLOSE_X, ProbeConfig.INQUIRY_CLOSE_Y,
+                        "inquiry_close_candidate");
+                Thread.sleep(1500);
+            } else {
+                logger.log("inquiry batch consult skipped by daily guard");
+                tap(input, ProbeConfig.INQUIRY_CLOSE_X, ProbeConfig.INQUIRY_CLOSE_Y,
+                        "inquiry_batch_guard_close");
+                Thread.sleep(1200);
             }
-            tap(input, ProbeConfig.INQUIRY_CLOSE_X, ProbeConfig.INQUIRY_CLOSE_Y,
-                    "inquiry_close_candidate");
-            Thread.sleep(1500);
             for (int index = 0; index < giftCount; index++) {
                 runGiftForTopNikke(capture, input, index, false);
             }
@@ -2293,6 +2402,16 @@ public final class MaaNikkeTaskRunner {
         probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
                 "inquiryandgift.checksendgift_" + (safeIndex + 1), new int[]{575, 82, 141, 40},
                 new String[]{"送礼"});
+        String giftAction = "gift_" + (safeIndex + 1);
+        if (!dryRun && shouldSkipDailyFinalAction("inquiry_and_gift", giftAction)) {
+            capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ACTION_FILE);
+            copyFile(ProbeConfig.TASK_AFTER_ACTION_FILE, ProbeConfig.TASK_FRAME_FILE);
+            tap(input, ProbeConfig.INQUIRY_GIFT_BACK_X, ProbeConfig.INQUIRY_GIFT_BACK_Y,
+                    "gift_guard_back_from_preview_" + (safeIndex + 1));
+            Thread.sleep(1400);
+            logger.log("gift skipped by daily guard index=" + safeIndex);
+            return;
+        }
         tap(input, ProbeConfig.INQUIRY_BASIC_GIFT_X, ProbeConfig.INQUIRY_BASIC_GIFT_Y,
                 "gift_basic_item_" + (safeIndex + 1));
         Thread.sleep(1400);
@@ -2320,8 +2439,12 @@ public final class MaaNikkeTaskRunner {
         Thread.sleep(1600);
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
         copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
-        tap(input, ProbeConfig.INQUIRY_SEND_GIFT_CONFIRM_X, ProbeConfig.INQUIRY_SEND_GIFT_CONFIRM_Y,
-                "gift_send_confirm_" + (safeIndex + 1));
+        if (!tapDailyFinalActionIfNeeded(input, "inquiry_and_gift", giftAction,
+                ProbeConfig.INQUIRY_SEND_GIFT_CONFIRM_X, ProbeConfig.INQUIRY_SEND_GIFT_CONFIRM_Y,
+                "gift_send_confirm_" + (safeIndex + 1))) {
+            logger.log("gift send confirm skipped by daily guard index=" + safeIndex);
+            return;
+        }
         Thread.sleep(2300);
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_GIFT_CONFIRM_FILE);
         copyFile(ProbeConfig.TASK_AFTER_GIFT_CONFIRM_FILE, ProbeConfig.TASK_FRAME_FILE);
@@ -2383,7 +2506,7 @@ public final class MaaNikkeTaskRunner {
     }
 
     private boolean waitForArkHubBeforeSubpageTap(FrameCaptureBackend capture, String pageName) throws Exception {
-        for (int attempt = 1; attempt <= 6; attempt++) {
+        for (int attempt = 1; attempt <= ProbeConfig.ARK_HUB_WAIT_ATTEMPTS; attempt++) {
             capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_OPEN_FILE);
             copyFile(ProbeConfig.TASK_AFTER_OPEN_FILE, ProbeConfig.TASK_FRAME_FILE);
             if (isArkHubVisible(ProbeConfig.TASK_AFTER_OPEN_FILE)) {
@@ -2395,15 +2518,17 @@ public final class MaaNikkeTaskRunner {
             } else {
                 logger.log("ark hub not ready page=" + pageName + " attempt=" + attempt);
             }
-            Thread.sleep(850);
+            Thread.sleep(ProbeConfig.ARK_HUB_WAIT_INTERVAL_MS);
         }
         return false;
     }
 
     private boolean waitForArkSubpageAfterTap(FrameCaptureBackend capture, String pageName, int tapAttempt)
             throws Exception {
-        for (int waitAttempt = 1; waitAttempt <= 9; waitAttempt++) {
-            Thread.sleep(waitAttempt == 1 ? 1500 : 850);
+        for (int waitAttempt = 1; waitAttempt <= ProbeConfig.ARK_SUBPAGE_WAIT_ATTEMPTS; waitAttempt++) {
+            Thread.sleep(waitAttempt == 1
+                    ? ProbeConfig.ARK_SUBPAGE_FIRST_WAIT_MS
+                    : ProbeConfig.ARK_SUBPAGE_WAIT_INTERVAL_MS);
             capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_OPEN_FILE);
             copyFile(ProbeConfig.TASK_AFTER_OPEN_FILE, ProbeConfig.TASK_FRAME_FILE);
             if (isMostlyWhiteOrBlack(ProbeConfig.TASK_AFTER_OPEN_FILE)) {
@@ -2421,7 +2546,7 @@ public final class MaaNikkeTaskRunner {
                         + " tapAttempt=" + tapAttempt + " waitAttempt=" + waitAttempt);
                 return true;
             }
-            if (waitAttempt >= 4) {
+            if (waitAttempt >= 5) {
                 return false;
             }
             logger.log("ark hub still visible page=" + pageName
@@ -2457,11 +2582,25 @@ public final class MaaNikkeTaskRunner {
             logger.log("debug dry-run stopped on sim room page before quick actions");
             return;
         }
+        if (shouldSkipDailyFinalAction("sim_room", "quick")) {
+            capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ACTION_FILE);
+            copyFile(ProbeConfig.TASK_AFTER_ACTION_FILE, ProbeConfig.TASK_FRAME_FILE);
+            finalState = "sim_room_quick_already_done_today";
+            actionSuccess = true;
+            logger.log("claim_sim_room skipped by daily guard before quick actions");
+            return;
+        }
         tap(input, ProbeConfig.SIM_ROOM_START_X, ProbeConfig.SIM_ROOM_START_Y,
                 "sim_room_start");
         Thread.sleep(1800);
-        tap(input, ProbeConfig.SIM_ROOM_QUICK_X, ProbeConfig.SIM_ROOM_QUICK_Y,
-                "sim_room_quick");
+        if (!tapDailyFinalActionIfNeeded(input, "sim_room", "quick",
+                ProbeConfig.SIM_ROOM_QUICK_X, ProbeConfig.SIM_ROOM_QUICK_Y,
+                "sim_room_quick")) {
+            finalState = "sim_room_quick_already_done_today";
+            actionSuccess = true;
+            logger.log("claim_sim_room quick skipped by daily guard");
+            return;
+        }
         Thread.sleep(1800);
         tap(input, ProbeConfig.SIM_ROOM_SKIP_BUFF_X, ProbeConfig.SIM_ROOM_SKIP_BUFF_Y,
                 "sim_room_skip_buff_or_confirm");
@@ -3039,6 +3178,7 @@ public final class MaaNikkeTaskRunner {
         }
 
         int sweepCount = 0;
+        boolean skippedSweepByGuard = false;
         for (int attempt = 1; attempt <= ProbeConfig.INTERCEPTION_SWEEP_MAX_ATTEMPTS; attempt++) {
             if (isInterceptionTeamPageVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)) {
                 finalState = "interception_unexpected_team_page_no_sweep";
@@ -3067,8 +3207,13 @@ public final class MaaNikkeTaskRunner {
                         + " maaCoreNoAttemptsOcrHit=" + noAttemptsOcrHit);
                 break;
             }
-            tap(input, ProbeConfig.INTERCEPTION_SWEEP_BUTTON_X, ProbeConfig.INTERCEPTION_SWEEP_BUTTON_Y,
-                    "interception_sweep_button_" + attempt);
+            if (!tapDailyFinalActionIfNeeded(input, "interception", "sweep_" + attempt,
+                    ProbeConfig.INTERCEPTION_SWEEP_BUTTON_X, ProbeConfig.INTERCEPTION_SWEEP_BUTTON_Y,
+                    "interception_sweep_button_" + attempt)) {
+                skippedSweepByGuard = true;
+                logger.log("interception sweep attempt skipped by daily guard attempt=" + attempt);
+                continue;
+            }
             Thread.sleep(1800);
             capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
             copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
@@ -3116,7 +3261,9 @@ public final class MaaNikkeTaskRunner {
         if (finalState == null || finalState.length() == 0 || finalState.startsWith("workflow_running")) {
             finalState = sweepCount > 0
                     ? "interception_quick_battle_swept_" + sweepCount
-                    : "interception_quick_battle_not_available";
+                    : (skippedSweepByGuard
+                    ? "interception_sweep_already_done_today"
+                    : "interception_quick_battle_not_available");
         }
         actionSuccess = true;
         logger.log("claim_interception completed with anomaly/boss/quick-battle loop bossName="
@@ -3306,8 +3453,14 @@ public final class MaaNikkeTaskRunner {
             logger.log("debug dry-run stopped after opening tower target label=" + label);
             return true;
         }
-        tap(input, ProbeConfig.CLIMB_TOWER_ENTER_FIGHT_X, ProbeConfig.CLIMB_TOWER_ENTER_FIGHT_Y,
-                label + "_enter_fight_candidate");
+        if (!tapDailyFinalActionIfNeeded(input, "climb_tower", label + "_enter_fight",
+                ProbeConfig.CLIMB_TOWER_ENTER_FIGHT_X, ProbeConfig.CLIMB_TOWER_ENTER_FIGHT_Y,
+                label + "_enter_fight_candidate")) {
+            finalState = label + "_already_done_today";
+            actionSuccess = true;
+            logger.log("climb tower enter fight skipped by daily guard label=" + label);
+            return true;
+        }
         if (waitAndHandleClimbTowerBattle(capture, input, label)) {
             return true;
         }
@@ -3429,7 +3582,7 @@ public final class MaaNikkeTaskRunner {
         copyFile(ProbeConfig.TASK_BEFORE_ACTION_FILE, ProbeConfig.TASK_FRAME_FILE);
         for (int attempt = 1; attempt <= 3; attempt++) {
             tap(input, x, y, label + "_visit_only_attempt_" + attempt);
-            Thread.sleep(attempt == 1 ? 1800 : 2400);
+            Thread.sleep(attempt == 1 ? 2400 : 3000);
             capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_OPEN_FILE);
             waitForPageAfterEntry(capture, ProbeConfig.TASK_AFTER_OPEN_FILE, label);
             if (!isHomeClearVisible(ProbeConfig.TASK_AFTER_OPEN_FILE)) {
@@ -3465,12 +3618,12 @@ public final class MaaNikkeTaskRunner {
     }
 
     private void waitForPageAfterEntry(FrameCaptureBackend capture, File frameFile, String label) throws Exception {
-        for (int attempt = 1; attempt <= 6; attempt++) {
+        for (int attempt = 1; attempt <= ProbeConfig.ENTRY_PAGE_WAIT_ATTEMPTS; attempt++) {
             if (!isMostlyWhiteOrBlack(frameFile)) {
                 logger.log("entry page appears stable label=" + label + " attempt=" + attempt);
                 return;
             }
-            Thread.sleep(1000);
+            Thread.sleep(ProbeConfig.ENTRY_PAGE_WAIT_INTERVAL_MS);
             capture.copyLatestFrameTo(frameFile);
             copyFile(frameFile, ProbeConfig.TASK_FRAME_FILE);
             logger.log("entry page still loading label=" + label + " attempt=" + attempt);
@@ -3525,7 +3678,17 @@ public final class MaaNikkeTaskRunner {
             return;
         }
 
-        tap(input, ProbeConfig.MAIL_CLAIM_ALL_X, ProbeConfig.MAIL_CLAIM_ALL_Y, "mail_claim_all");
+        if (!tapDailyFinalActionIfNeeded(input, "mail", "claim_all",
+                ProbeConfig.MAIL_CLAIM_ALL_X, ProbeConfig.MAIL_CLAIM_ALL_Y, "mail_claim_all")) {
+            finalState = "mail_claim_already_done_today";
+            logger.log("claim_mail skipped by daily guard before claim-all");
+            returnToHomeAfterMail(capture, input);
+            actionSuccess = true;
+            finalState = "home_clear".equals(finalState)
+                    ? "mail_claim_already_done_today_home_clear"
+                    : "mail_claim_already_done_today";
+            return;
+        }
         Thread.sleep(1600);
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_MAIL_CLAIM_FILE);
         copyFile(ProbeConfig.TASK_AFTER_MAIL_CLAIM_FILE, ProbeConfig.TASK_FRAME_FILE);
@@ -3753,6 +3916,124 @@ public final class MaaNikkeTaskRunner {
         return false;
     }
 
+    private boolean tapDailyFinalActionIfNeeded(InputInjector input, String taskId, String actionId,
+                                                int x, int y, String label) throws Exception {
+        if (shouldSkipDailyFinalAction(taskId, actionId)) {
+            return false;
+        }
+        tap(input, x, y, label);
+        markDailyFinalActionDone(taskId, actionId, label);
+        return true;
+    }
+
+    private boolean shouldSkipDailyFinalAction(String taskId, String actionId) {
+        String date = todayLedgerDate();
+        String safeTask = sanitizeLedgerField(taskId);
+        String safeAction = sanitizeLedgerField(actionId);
+        if (!isDailyFinalActionRecorded(date, safeTask, safeAction)) {
+            return false;
+        }
+        logger.log("daily guard skip final_action task=" + safeTask
+                + " action=" + safeAction
+                + " date=" + date
+                + " reason=already_done_today");
+        return true;
+    }
+
+    private void markDailyFinalActionDone(String taskId, String actionId, String label) {
+        String date = todayLedgerDate();
+        String safeTask = sanitizeLedgerField(taskId);
+        String safeAction = sanitizeLedgerField(actionId);
+        File ledger = ProbeConfig.DAILY_ACTION_LEDGER_FILE;
+        try {
+            File parent = ledger.getParentFile();
+            if (parent != null && !parent.exists() && !parent.mkdirs()) {
+                logger.log("daily guard record skipped, cannot create " + parent.getAbsolutePath());
+                return;
+            }
+            FileWriter writer = new FileWriter(ledger, true);
+            try {
+                writer.write(date);
+                writer.write('\t');
+                writer.write(safeTask);
+                writer.write('\t');
+                writer.write(safeAction);
+                writer.write('\t');
+                writer.write(sanitizeLedgerField(label));
+                writer.write('\t');
+                writer.write(sanitizeLedgerField(finalState));
+                writer.write('\t');
+                writer.write(sanitizeLedgerField(normalizeTaskName(taskName)));
+                writer.write('\t');
+                writer.write(sanitizeLedgerField(activeWorkflowStep == null ? "" : activeWorkflowStep));
+                writer.write('\n');
+            } finally {
+                writer.close();
+            }
+            logger.log("daily guard record final_action task=" + safeTask
+                    + " action=" + safeAction
+                    + " date=" + date
+                    + " label=" + label);
+        } catch (Throwable error) {
+            logger.log("daily guard record failed task=" + safeTask
+                    + " action=" + safeAction
+                    + " error=" + error.getClass().getName()
+                    + ": " + error.getMessage());
+        }
+    }
+
+    private boolean isDailyFinalActionRecorded(String date, String taskId, String actionId) {
+        File ledger = ProbeConfig.DAILY_ACTION_LEDGER_FILE;
+        if (!ledger.exists()) {
+            return false;
+        }
+        BufferedReader reader = null;
+        try {
+            reader = new BufferedReader(new InputStreamReader(new FileInputStream(ledger), "UTF-8"));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split("\\t", -1);
+                if (parts.length >= 3
+                        && date.equals(parts[0])
+                        && taskId.equals(parts[1])
+                        && actionId.equals(parts[2])) {
+                    return true;
+                }
+            }
+        } catch (Throwable error) {
+            logger.log("daily guard read failed: "
+                    + error.getClass().getName() + ": " + error.getMessage());
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+        return false;
+    }
+
+    private String todayLedgerDate() {
+        Calendar calendar = Calendar.getInstance();
+        return String.valueOf(calendar.get(Calendar.YEAR))
+                + "-" + twoDigits(calendar.get(Calendar.MONTH) + 1)
+                + "-" + twoDigits(calendar.get(Calendar.DAY_OF_MONTH));
+    }
+
+    private String twoDigits(int value) {
+        return value < 10 ? "0" + value : String.valueOf(value);
+    }
+
+    private String sanitizeLedgerField(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace('\t', ' ')
+                .replace('\n', ' ')
+                .replace('\r', ' ');
+    }
+
     private void tap(InputInjector input, int x, int y, String label) throws Exception {
         logger.log("tap label=" + label + " x=" + x + " y=" + y + " displayId=" + displayId);
         boolean down = input.injectTouch(MotionEvent.ACTION_DOWN, x, y, displayId, true);
@@ -3903,7 +4184,7 @@ public final class MaaNikkeTaskRunner {
                         logger.log("start page still visible during wait, tap enter game again");
                         tap(input, ProbeConfig.ENTER_GAME_X, ProbeConfig.ENTER_GAME_Y,
                                 "enter_game_retry_during_wait_" + second);
-                        Thread.sleep(1600);
+                        Thread.sleep(2200);
                         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ENTER_FILE);
                         copyFile(ProbeConfig.TASK_AFTER_ENTER_FILE, ProbeConfig.TASK_FRAME_FILE);
                         if (isAnnouncementDialogVisible(ProbeConfig.TASK_AFTER_ENTER_FILE)) {
@@ -3952,7 +4233,7 @@ public final class MaaNikkeTaskRunner {
             if (second == 30 || second == 55 || second == 80 || second == 105) {
                 tap(input, ProbeConfig.ENTER_GAME_X, ProbeConfig.ENTER_GAME_Y,
                         "enter_game_candidate_" + (++enterAttempts));
-                Thread.sleep(1600);
+                Thread.sleep(2200);
                 waitForStableScene(capture, ProbeConfig.STABLE_SCENE_WAIT_SECONDS,
                         "enter_game_candidate_" + enterAttempts);
                 capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ENTER_FILE);
@@ -6298,6 +6579,7 @@ public final class MaaNikkeTaskRunner {
                 writer.write("afterMailOpenFile=" + ProbeConfig.TASK_AFTER_MAIL_OPEN_FILE.getAbsolutePath() + "\n");
                 writer.write("afterMailClaimFile=" + ProbeConfig.TASK_AFTER_MAIL_CLAIM_FILE.getAbsolutePath() + "\n");
                 writer.write("afterMailConfirmFile=" + ProbeConfig.TASK_AFTER_MAIL_CONFIRM_FILE.getAbsolutePath() + "\n");
+                writer.write("dailyActionLedgerFile=" + ProbeConfig.DAILY_ACTION_LEDGER_FILE.getAbsolutePath() + "\n");
                 writer.write("maaCoreProbeReportFile=" + ProbeConfig.MAACORE_PROBE_REPORT_FILE.getAbsolutePath() + "\n");
                 writer.write("logFile=" + ProbeConfig.TASK_LOG_FILE.getAbsolutePath() + "\n");
             } finally {
