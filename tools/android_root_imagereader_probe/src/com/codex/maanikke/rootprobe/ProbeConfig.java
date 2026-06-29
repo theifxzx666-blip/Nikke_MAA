@@ -1,11 +1,15 @@
 package com.codex.maanikke.rootprobe;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.util.Properties;
 
 final class ProbeConfig {
-    static final int WIDTH = 1280;
-    static final int HEIGHT = 720;
-    static final int DPI = 160;
+    static final int BASE_WIDTH = 1280;
+    static final int BASE_HEIGHT = 720;
+    static final int WIDTH = readIntOption("maanikke.display.width", 1280);
+    static final int HEIGHT = readIntOption("maanikke.display.height", 720);
+    static final int DPI = readIntOption("maanikke.display.dpi", WIDTH >= 1920 ? 240 : 160);
     static final int MAX_IMAGES = 5;
     static final int CAPTURE_SECONDS = 60;
     static final String PREVIEW_SOCKET_NAME = "maanikke_preview_frame";
@@ -31,7 +35,7 @@ final class ProbeConfig {
     static final int ARK_SUBPAGE_WAIT_ATTEMPTS = 11;
     static final int ARK_SUBPAGE_FIRST_WAIT_MS = 2200;
     static final int ARK_SUBPAGE_WAIT_INTERVAL_MS = 1100;
-    static final String VD_NAME = "MaaNikkeRootIR-1280x720";
+    static final String VD_NAME = "MaaNikkeRootIR-" + WIDTH + "x" + HEIGHT;
     static final String DEFAULT_TARGET_PACKAGE = "com.tencent.nikke";
     static final String DEFAULT_TARGET_ACTIVITY = ".default_Activity";
     static final String TARGET_OVERRIDE_FILE = "/data/local/tmp/maanikke_target_package.txt";
@@ -123,6 +127,48 @@ final class ProbeConfig {
 
     static final int TOUCH_X = 32;
     static final int TOUCH_Y = 86;
+
+    static int scaleX(int baseX) {
+        return Math.round(baseX * (WIDTH / (float) BASE_WIDTH));
+    }
+
+    static int scaleY(int baseY) {
+        return Math.round(baseY * (HEIGHT / (float) BASE_HEIGHT));
+    }
+
+    static int scaleWidth(int baseWidth) {
+        return Math.max(1, Math.round(baseWidth * (WIDTH / (float) BASE_WIDTH)));
+    }
+
+    static int scaleHeight(int baseHeight) {
+        return Math.max(1, Math.round(baseHeight * (HEIGHT / (float) BASE_HEIGHT)));
+    }
+
+    private static int readIntOption(String key, int defaultValue) {
+        File file = new File("/data/local/tmp/maanikke_task_options.properties");
+        if (!file.isFile()) {
+            return defaultValue;
+        }
+        Properties properties = new Properties();
+        try {
+            FileInputStream input = new FileInputStream(file);
+            try {
+                properties.load(input);
+            } finally {
+                input.close();
+            }
+            String raw = properties.getProperty(key, "");
+            if (raw.trim().length() == 0) {
+                return defaultValue;
+            }
+            int value = Integer.parseInt(raw.trim());
+            if (value > 0) {
+                return value;
+            }
+        } catch (Throwable ignored) {
+        }
+        return defaultValue;
+    }
 
     static final int ANNOUNCEMENT_X = 32;
     static final int ANNOUNCEMENT_Y = 86;

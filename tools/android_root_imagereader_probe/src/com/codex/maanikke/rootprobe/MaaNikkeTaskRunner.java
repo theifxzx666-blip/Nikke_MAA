@@ -3045,18 +3045,21 @@ public final class MaaNikkeTaskRunner {
         if (roi == null || roi.length < 4) {
             return "full";
         }
-        return roi[0] + "," + roi[1] + "," + roi[2] + "," + roi[3];
+        int[] scaled = scaleRoi(roi);
+        return scaled[0] + "," + scaled[1] + "," + scaled[2] + "," + scaled[3]
+                + " base=" + roi[0] + "," + roi[1] + "," + roi[2] + "," + roi[3];
     }
 
     private String buildMaaCoreOcrParamJson(int[] roi, String[] expected) {
         StringBuilder builder = new StringBuilder();
         builder.append("{\"recognition\":\"OCR\"");
         if (roi != null && roi.length >= 4) {
+            int[] scaled = scaleRoi(roi);
             builder.append(",\"roi\":[")
-                    .append(roi[0]).append(',')
-                    .append(roi[1]).append(',')
-                    .append(roi[2]).append(',')
-                    .append(roi[3]).append(']');
+                    .append(scaled[0]).append(',')
+                    .append(scaled[1]).append(',')
+                    .append(scaled[2]).append(',')
+                    .append(scaled[3]).append(']');
         }
         if (expected != null && expected.length > 0) {
             builder.append(",\"expected\":[");
@@ -3075,6 +3078,15 @@ public final class MaaNikkeTaskRunner {
         }
         builder.append('}');
         return builder.toString();
+    }
+
+    private int[] scaleRoi(int[] roi) {
+        return new int[]{
+                ProbeConfig.scaleX(roi[0]),
+                ProbeConfig.scaleY(roi[1]),
+                ProbeConfig.scaleWidth(roi[2]),
+                ProbeConfig.scaleHeight(roi[3])
+        };
     }
 
     private String escapeJson(String value) {
@@ -4035,10 +4047,15 @@ public final class MaaNikkeTaskRunner {
     }
 
     private void tap(InputInjector input, int x, int y, String label) throws Exception {
-        logger.log("tap label=" + label + " x=" + x + " y=" + y + " displayId=" + displayId);
-        boolean down = input.injectTouch(MotionEvent.ACTION_DOWN, x, y, displayId, true);
+        int scaledX = ProbeConfig.scaleX(x);
+        int scaledY = ProbeConfig.scaleY(y);
+        logger.log("tap label=" + label
+                + " baseX=" + x + " baseY=" + y
+                + " x=" + scaledX + " y=" + scaledY
+                + " displayId=" + displayId);
+        boolean down = input.injectTouch(MotionEvent.ACTION_DOWN, scaledX, scaledY, displayId, true);
         Thread.sleep(ProbeConfig.TOUCH_DOWN_UP_MS);
-        boolean up = input.injectTouch(MotionEvent.ACTION_UP, x, y, displayId, false);
+        boolean up = input.injectTouch(MotionEvent.ACTION_UP, scaledX, scaledY, displayId, false);
         actionCount++;
         logger.log("tap result label=" + label + " down=" + down + " up=" + up);
         Thread.sleep(ProbeConfig.TAP_SETTLE_MS);
@@ -5796,7 +5813,7 @@ public final class MaaNikkeTaskRunner {
             int dark = 0;
             for (int y = 40; y <= 680; y += 40) {
                 for (int x = 40; x <= 1240; x += 40) {
-                    int color = bitmap.getPixel(x, y);
+                    int color = getBasePixel(bitmap, x, y);
                     int r = (color >> 16) & 0xff;
                     int g = (color >> 8) & 0xff;
                     int b = color & 0xff;
@@ -5824,7 +5841,7 @@ public final class MaaNikkeTaskRunner {
         int maxY = Math.min(bitmap.getHeight() - 1, bottom);
         for (int y = Math.max(0, top); y <= maxY; y += 16) {
             for (int x = Math.max(0, left); x <= maxX; x += 16) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -5836,13 +5853,19 @@ public final class MaaNikkeTaskRunner {
         return hits;
     }
 
+    private int getBasePixel(Bitmap bitmap, int baseX, int baseY) {
+        int x = Math.max(0, Math.min(bitmap.getWidth() - 1, ProbeConfig.scaleX(baseX)));
+        int y = Math.max(0, Math.min(bitmap.getHeight() - 1, ProbeConfig.scaleY(baseY)));
+        return bitmap.getPixel(x, y);
+    }
+
     private int countBlueButtonSamples(Bitmap bitmap, int left, int top, int right, int bottom) {
         int hits = 0;
         int maxX = Math.min(bitmap.getWidth() - 1, right);
         int maxY = Math.min(bitmap.getHeight() - 1, bottom);
         for (int y = Math.max(0, top); y <= maxY; y += 8) {
             for (int x = Math.max(0, left); x <= maxX; x += 8) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -5860,7 +5883,7 @@ public final class MaaNikkeTaskRunner {
         int maxY = Math.min(bitmap.getHeight() - 1, bottom);
         for (int y = Math.max(0, top); y <= maxY; y += 8) {
             for (int x = Math.max(0, left); x <= maxX; x += 8) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -5878,7 +5901,7 @@ public final class MaaNikkeTaskRunner {
         int maxY = Math.min(bitmap.getHeight() - 1, 637);
         for (int y = 582; y <= maxY; y += 8) {
             for (int x = 642; x <= maxX; x += 8) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -5898,7 +5921,7 @@ public final class MaaNikkeTaskRunner {
         int maxY = Math.min(bitmap.getHeight() - 1, bottom);
         for (int y = Math.max(0, top); y <= maxY; y += 8) {
             for (int x = Math.max(0, left); x <= maxX; x += 8) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -5916,7 +5939,7 @@ public final class MaaNikkeTaskRunner {
         int maxY = Math.min(bitmap.getHeight() - 1, bottom);
         for (int y = Math.max(0, top); y <= maxY; y += 8) {
             for (int x = Math.max(0, left); x <= maxX; x += 8) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -5935,7 +5958,7 @@ public final class MaaNikkeTaskRunner {
         int maxY = Math.min(bitmap.getHeight() - 1, bottom);
         for (int y = Math.max(0, top); y <= maxY; y += 8) {
             for (int x = Math.max(0, left); x <= maxX; x += 8) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -5953,7 +5976,7 @@ public final class MaaNikkeTaskRunner {
         int maxY = Math.min(bitmap.getHeight() - 1, bottom);
         for (int y = Math.max(0, top); y <= maxY; y += 8) {
             for (int x = Math.max(0, left); x <= maxX; x += 8) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -5969,7 +5992,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 140; y <= 178; y += 10) {
             for (int x = 465; x <= 815; x += 20) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -5985,7 +6008,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 185; y <= 520; y += 25) {
             for (int x = 480; x <= 805; x += 25) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6001,7 +6024,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 284; y <= 357; y += 10) {
             for (int x = 460; x <= 820; x += 20) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6017,7 +6040,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 323; y <= 438; y += 15) {
             for (int x = 475; x <= 806; x += 25) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6033,7 +6056,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 450; y <= 486; y += 8) {
             for (int x = 585; x <= 696; x += 15) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6049,7 +6072,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 190; y <= 232; y += 6) {
             for (int x = 460; x <= 820; x += 12) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6065,7 +6088,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 238; y <= 410; y += 12) {
             for (int x = 470; x <= 810; x += 14) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6081,7 +6104,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 436; y <= 466; y += 5) {
             for (int x = 482; x <= 630; x += 8) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6097,7 +6120,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 436; y <= 466; y += 5) {
             for (int x = 650; x <= 800; x += 8) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6113,7 +6136,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 150; y <= 660; y += 20) {
             for (int x = 460; x <= 820; x += 20) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6129,7 +6152,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 170; y <= 650; y += 30) {
             for (int x = 60; x <= 330; x += 30) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6145,7 +6168,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 635; y <= 710; y += 10) {
             for (int x = 450; x <= 830; x += 10) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6161,7 +6184,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 120; y <= 370; y += 10) {
             for (int x = 1210; x <= 1270; x += 10) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6177,7 +6200,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 410; y <= 590; y += 15) {
             for (int x = 250; x <= 980; x += 15) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6193,7 +6216,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 420; y <= 620; y += 12) {
             for (int x = 250; x <= 500; x += 12) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6209,7 +6232,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 200; y <= 610; y += 8) {
             for (int x = 45; x <= 1235; x += 8) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6227,7 +6250,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 635; y <= 708; y += 8) {
             for (int x = 450; x <= 820; x += 8) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6243,7 +6266,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 72; y <= 126; y += 9) {
             for (int x = 470; x <= 815; x += 15) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6259,7 +6282,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 238; y <= 565; y += 20) {
             for (int x = 480; x <= 805; x += 20) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6275,7 +6298,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 130; y <= 635; y += 20) {
             for (int x = 460; x <= 820; x += 20) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6291,7 +6314,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 592; y <= 628; y += 6) {
             for (int x = 668; x <= 800; x += 8) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6307,7 +6330,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 210; y <= 260; y += 5) {
             for (int x = 590; x <= 690; x += 5) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6323,7 +6346,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 292; y <= 415; y += 10) {
             for (int x = 480; x <= 800; x += 10) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6339,7 +6362,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 330; y <= 380; y += 5) {
             for (int x = 570; x <= 705; x += 5) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6355,7 +6378,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 548; y <= 578; y += 5) {
             for (int x = 510; x <= 620; x += 5) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6371,7 +6394,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 548; y <= 578; y += 5) {
             for (int x = 660; x <= 775; x += 5) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6387,7 +6410,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 628; y <= 705; y += 8) {
             for (int x = 35; x <= 155; x += 8) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6404,7 +6427,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = y1; y <= y2; y += step) {
             for (int x = x1; x <= x2; x += step) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6420,7 +6443,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 250; y <= 285; y += 5) {
             for (int x = 465; x <= 815; x += 10) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6436,7 +6459,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 285; y <= 420; y += 10) {
             for (int x = 470; x <= 810; x += 15) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6452,7 +6475,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 450; y <= 488; y += 6) {
             for (int x = 565; x <= 715; x += 8) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6468,7 +6491,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 52; y <= 136; y += 12) {
             for (int x = 452; x <= 828; x += 12) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;
@@ -6484,7 +6507,7 @@ public final class MaaNikkeTaskRunner {
         int hits = 0;
         for (int y = 136; y <= 646; y += 20) {
             for (int x = 452; x <= 828; x += 20) {
-                int color = bitmap.getPixel(x, y);
+                int color = getBasePixel(bitmap, x, y);
                 int r = (color >> 16) & 0xff;
                 int g = (color >> 8) & 0xff;
                 int b = color & 0xff;

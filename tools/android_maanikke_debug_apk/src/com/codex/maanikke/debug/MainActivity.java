@@ -112,8 +112,16 @@ public final class MainActivity extends Activity {
     private static final String PREF_BACKGROUND_MODE = "background_mode";
     private static final String PREF_DEBUG_MODE = "debug_mode";
     private static final String PREF_BACKEND_MODE = "backend_mode";
+    private static final String PREF_THEME_MODE = "theme_mode";
+    private static final String PREF_DISPLAY_RESOLUTION = "display_resolution";
     private static final String BACKEND_MODE_ROOT = "root";
     private static final String BACKEND_MODE_SHIZUKU = "shizuku";
+    private static final String THEME_MODE_SYSTEM = "system";
+    private static final String THEME_MODE_LIGHT = "light";
+    private static final String THEME_MODE_DARK = "dark";
+    private static final String THEME_MODE_BLACK = "black";
+    private static final String DISPLAY_RESOLUTION_720P = "720p";
+    private static final String DISPLAY_RESOLUTION_1080P = "1080p";
     private static final String PREF_TASK_OPTION_PREFIX = "task_option_";
     private static final String PREF_PERMISSION_EXPANDED = "permission_expanded";
     private static final String PREF_SCHEDULE_ENABLED = "schedule_enabled";
@@ -155,6 +163,12 @@ public final class MainActivity extends Activity {
     private static final int REQ_SHIZUKU = 1001;
     private static final int REQ_STORAGE = 1002;
     private static final int REQ_NOTIFICATION = 1003;
+    private static final int DISPLAY_720P_WIDTH = 1280;
+    private static final int DISPLAY_720P_HEIGHT = 720;
+    private static final int DISPLAY_720P_DPI = 160;
+    private static final int DISPLAY_1080P_WIDTH = 1920;
+    private static final int DISPLAY_1080P_HEIGHT = 1080;
+    private static final int DISPLAY_1080P_DPI = 240;
     private static final String[] NIKKE_PACKAGE_CANDIDATES = new String[]{
             "com.tencent.nikke",
             "com.proximabeta.nikke",
@@ -208,10 +222,12 @@ public final class MainActivity extends Activity {
     private TextView backgroundModeText;
     private TextView debugModeText;
     private TextView backendModeText;
+    private TextView themeModeText;
+    private TextView displayResolutionText;
     private TextView profileModeText;
     private TextView shizukuPermissionText;
     private TextView storagePermissionText;
-    private TextView packageListPermissionText;
+    private TextView overlayPermissionText;
     private TextView notificationPermissionText;
     private TextView batteryPermissionText;
     private ImageView previewImage;
@@ -222,6 +238,8 @@ public final class MainActivity extends Activity {
     private volatile boolean backgroundMode = false;
     private volatile boolean debugMode = true;
     private volatile String backendMode = BACKEND_MODE_ROOT;
+    private volatile String themeMode = THEME_MODE_SYSTEM;
+    private volatile String displayResolution = DISPLAY_RESOLUTION_720P;
     private Button startGameButton;
     private Button workflowButton;
     private Button stopButton;
@@ -292,6 +310,10 @@ public final class MainActivity extends Activity {
         backgroundMode = getPreferencesStore().getBoolean(PREF_BACKGROUND_MODE, false);
         debugMode = getPreferencesStore().getBoolean(PREF_DEBUG_MODE, true);
         backendMode = getPreferencesStore().getString(PREF_BACKEND_MODE, BACKEND_MODE_ROOT);
+        themeMode = getPreferencesStore().getString(PREF_THEME_MODE, THEME_MODE_SYSTEM);
+        displayResolution = getPreferencesStore().getString(PREF_DISPLAY_RESOLUTION, DISPLAY_RESOLUTION_720P);
+        normalizeUiSettings();
+        applyThemeChrome();
         previewDecodeOptions.inPreferredConfig = Bitmap.Config.RGB_565;
         setContentView(buildView());
         setupShizukuCallbacks();
@@ -418,7 +440,7 @@ public final class MainActivity extends Activity {
     private View buildView() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xfff7f4ef);
+        root.setBackgroundColor(themePageBackgroundColor());
 
         LinearLayout contentHost = new LinearLayout(this);
         contentHost.setOrientation(LinearLayout.VERTICAL);
@@ -503,7 +525,7 @@ public final class MainActivity extends Activity {
         TextView title = new TextView(this);
         title.setText("MaaNikke");
         title.setTextSize(25);
-        title.setTextColor(0xff151923);
+        title.setTextColor(themePrimaryTextColor());
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setGravity(Gravity.CENTER_VERTICAL);
         titleBox.addView(title, new LinearLayout.LayoutParams(
@@ -514,7 +536,7 @@ public final class MainActivity extends Activity {
         TextView subtitle = new TextView(this);
         subtitle.setText("MaaMeow 架构适配 / MaaNikke PC 任务目录");
         subtitle.setTextSize(12);
-        subtitle.setTextColor(0xff6b7280);
+        subtitle.setTextColor(themeSecondaryTextColor());
         titleBox.addView(subtitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -595,6 +617,10 @@ public final class MainActivity extends Activity {
         addDebugModeRow(commonCard);
         addDivider(commonCard);
         addBackgroundModeRow(commonCard);
+        addDivider(commonCard);
+        addBackendModeRow(commonCard);
+        addDivider(commonCard);
+        addDisplayResolutionRow(commonCard);
 
         LinearLayout permissionCard = cardLayout(0xffffffff, 0x1f000000);
         LinearLayout.LayoutParams permissionParams = new LinearLayout.LayoutParams(
@@ -625,11 +651,11 @@ public final class MainActivity extends Activity {
                     }
                 });
         addDivider(permissionCard);
-        packageListPermissionText = addPermissionRow(permissionCard, "应用安装列表获取", "检查中",
+        overlayPermissionText = addPermissionRow(permissionCard, "悬浮窗权限", "检查中",
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        openAppDetails();
+                        openOverlayPermission();
                     }
                 });
         addDivider(permissionCard);
@@ -680,7 +706,7 @@ public final class MainActivity extends Activity {
                 1,
                 1
         ));
-        activeTaskChip = pillText("1280 x 720", 0xffedf1fb, 0xff2563eb);
+        activeTaskChip = pillText(selectedDisplaySummary(), 0xffedf1fb, 0xff2563eb);
         previewHeader.addView(activeTaskChip, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 dp(28)
@@ -1329,7 +1355,7 @@ public final class MainActivity extends Activity {
         ));
         profileModeText = addInfoRow(statusCard, "Profile", buildProfileModeText());
         addInfoRow(statusCard, "任务目录", TaskCatalog.enabledCount() + " / " + TaskCatalog.PC_TASKS.length + " 已启用");
-        addInfoRow(statusCard, "显示容器", "1280 x 720 @ 160dpi");
+        addInfoRow(statusCard, "显示容器", selectedDisplaySummary());
         addInfoRow(statusCard, "资源目录", "Documents/MaaNikke/resource/base");
 
         LinearLayout updateCard = cardLayout(0xffffffff, 0x1f000000);
@@ -1388,7 +1414,7 @@ public final class MainActivity extends Activity {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
-        addBackendModeRow(otherCard);
+        addThemeModeRow(otherCard);
         addDivider(otherCard);
         addActionRow(otherCard, "运行环境预检",
                 "只读检查控制器、存储、目标包、资源和 OCR 证据。", "预检",
@@ -1493,7 +1519,7 @@ public final class MainActivity extends Activity {
         view.setText(text);
         view.setTextSize(26);
         view.setTypeface(Typeface.DEFAULT_BOLD);
-        view.setTextColor(0xff111827);
+        view.setTextColor(themePrimaryTextColor());
         view.setPadding(0, dp(16), 0, dp(10));
         return view;
     }
@@ -1922,7 +1948,7 @@ public final class MainActivity extends Activity {
         LinearLayout copy = new LinearLayout(this);
         copy.setOrientation(LinearLayout.VERTICAL);
         TextView titleView = new TextView(this);
-        titleView.setText("控制器模式");
+        titleView.setText("启动模式");
         titleView.setTextSize(14);
         titleView.setTextColor(0xff111827);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -1932,7 +1958,7 @@ public final class MainActivity extends Activity {
         ));
 
         TextView subtitleView = new TextView(this);
-        subtitleView.setText("Root 稳定优先；Shizuku 用于无 Root 设备，需要先在 Shizuku 内授权本应用。");
+        subtitleView.setText("可选 Shizuku 或 ROOT；Shizuku 需要先在 Shizuku 内授权本应用。");
         subtitleView.setTextSize(11);
         subtitleView.setTextColor(0xff6b7280);
         subtitleView.setSingleLine(false);
@@ -1955,6 +1981,100 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(dp(92), dp(32));
         chipParams.leftMargin = dp(8);
         row.addView(backendModeText, chipParams);
+
+        parent.addView(row, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+    }
+
+    private void addDisplayResolutionRow(LinearLayout parent) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(10), 0, 0);
+
+        LinearLayout copy = new LinearLayout(this);
+        copy.setOrientation(LinearLayout.VERTICAL);
+        TextView titleView = new TextView(this);
+        titleView.setText("后台分辨率");
+        titleView.setTextSize(14);
+        titleView.setTextColor(0xff111827);
+        titleView.setTypeface(Typeface.DEFAULT_BOLD);
+        copy.addView(titleView, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+
+        TextView subtitleView = new TextView(this);
+        subtitleView.setText("720p 稳定优先；1080p 会创建 1920x1080 虚拟显示并按比例映射点击与识别区域。");
+        subtitleView.setTextSize(11);
+        subtitleView.setTextColor(0xff6b7280);
+        subtitleView.setSingleLine(false);
+        copy.addView(subtitleView, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        row.addView(copy, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+
+        displayResolutionText = pillText(buildDisplayResolutionLabel(), 0xffe8efff, 0xff2563eb);
+        displayResolutionText.setGravity(Gravity.CENTER);
+        displayResolutionText.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                toggleDisplayResolution();
+            }
+        });
+        LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(dp(92), dp(32));
+        chipParams.leftMargin = dp(8);
+        row.addView(displayResolutionText, chipParams);
+
+        parent.addView(row, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+    }
+
+    private void addThemeModeRow(LinearLayout parent) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(10), 0, 0);
+
+        LinearLayout copy = new LinearLayout(this);
+        copy.setOrientation(LinearLayout.VERTICAL);
+        TextView titleView = new TextView(this);
+        titleView.setText("主题模式");
+        titleView.setTextSize(14);
+        titleView.setTextColor(0xff111827);
+        titleView.setTypeface(Typeface.DEFAULT_BOLD);
+        copy.addView(titleView, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+
+        TextView subtitleView = new TextView(this);
+        subtitleView.setText("随系统、白色、暗色、纯黑（A屏黑）循环切换。切换后会重建界面。");
+        subtitleView.setTextSize(11);
+        subtitleView.setTextColor(0xff6b7280);
+        subtitleView.setSingleLine(false);
+        copy.addView(subtitleView, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        row.addView(copy, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+
+        themeModeText = pillText(buildThemeModeLabel(), 0xffeef2ff, 0xff2563eb);
+        themeModeText.setGravity(Gravity.CENTER);
+        themeModeText.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                cycleThemeMode();
+            }
+        });
+        LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(dp(120), dp(32));
+        chipParams.leftMargin = dp(8);
+        row.addView(themeModeText, chipParams);
 
         parent.addView(row, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -2124,6 +2244,9 @@ public final class MainActivity extends Activity {
         }
         if (title.indexOf("存储") >= 0 || title.indexOf("瀛樺偍") >= 0) {
             return "用于导出日志、截图和任务证据。";
+        }
+        if (title.indexOf("悬浮窗") >= 0) {
+            return "用于保留运行提示和后台调试入口。";
         }
         if (title.indexOf("安装列表") >= 0) {
             return "用于发现 NIKKE 渠道包，root 后端也会兜底枚举。";
@@ -2970,7 +3093,7 @@ public final class MainActivity extends Activity {
     }
 
     private String buildBackendModeLabel() {
-        return isShizukuBackend() ? "Shizuku" : "Root";
+        return isShizukuBackend() ? "Shizuku" : "ROOT";
     }
 
     private void toggleBackendMode() {
@@ -3031,6 +3154,158 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private void normalizeUiSettings() {
+        if (!BACKEND_MODE_SHIZUKU.equals(backendMode) && !BACKEND_MODE_ROOT.equals(backendMode)) {
+            backendMode = BACKEND_MODE_ROOT;
+        }
+        if (!THEME_MODE_LIGHT.equals(themeMode)
+                && !THEME_MODE_DARK.equals(themeMode)
+                && !THEME_MODE_BLACK.equals(themeMode)
+                && !THEME_MODE_SYSTEM.equals(themeMode)) {
+            themeMode = THEME_MODE_SYSTEM;
+        }
+        if (!DISPLAY_RESOLUTION_1080P.equals(displayResolution)) {
+            displayResolution = DISPLAY_RESOLUTION_720P;
+        }
+    }
+
+    private String buildThemeModeLabel() {
+        if (THEME_MODE_LIGHT.equals(themeMode)) {
+            return "白色";
+        }
+        if (THEME_MODE_DARK.equals(themeMode)) {
+            return "暗色";
+        }
+        if (THEME_MODE_BLACK.equals(themeMode)) {
+            return "纯黑";
+        }
+        return "随系统";
+    }
+
+    private boolean isDarkThemeActive() {
+        if (THEME_MODE_DARK.equals(themeMode) || THEME_MODE_BLACK.equals(themeMode)) {
+            return true;
+        }
+        if (THEME_MODE_LIGHT.equals(themeMode)) {
+            return false;
+        }
+        int mask = getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+        return mask == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    private int themePageBackgroundColor() {
+        if (THEME_MODE_BLACK.equals(themeMode)) {
+            return 0xff000000;
+        }
+        if (isDarkThemeActive()) {
+            return 0xff111827;
+        }
+        return 0xfff7f4ef;
+    }
+
+    private int themePrimaryTextColor() {
+        return isDarkThemeActive() ? 0xfff9fafb : 0xff111827;
+    }
+
+    private int themeSecondaryTextColor() {
+        return isDarkThemeActive() ? 0xffcbd5e1 : 0xff6b7280;
+    }
+
+    private void applyThemeChrome() {
+        int background = themePageBackgroundColor();
+        getWindow().setStatusBarColor(background);
+        getWindow().setNavigationBarColor(background);
+        if (Build.VERSION.SDK_INT >= 23 && !isDarkThemeActive()) {
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(0);
+        }
+    }
+
+    private void cycleThemeMode() {
+        if (THEME_MODE_SYSTEM.equals(themeMode)) {
+            setThemeMode(THEME_MODE_LIGHT);
+        } else if (THEME_MODE_LIGHT.equals(themeMode)) {
+            setThemeMode(THEME_MODE_DARK);
+        } else if (THEME_MODE_DARK.equals(themeMode)) {
+            setThemeMode(THEME_MODE_BLACK);
+        } else {
+            setThemeMode(THEME_MODE_SYSTEM);
+        }
+    }
+
+    private void setThemeMode(String mode) {
+        themeMode = mode;
+        normalizeUiSettings();
+        getPreferencesStore().edit().putString(PREF_THEME_MODE, themeMode).apply();
+        updateThemeModeUi();
+        append("主题模式已切换为：" + buildThemeModeLabel());
+        mainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                recreate();
+            }
+        });
+    }
+
+    private void updateThemeModeUi() {
+        if (themeModeText != null) {
+            themeModeText.setText(buildThemeModeLabel());
+            themeModeText.setTextColor(isDarkThemeActive() ? 0xfff9fafb : 0xff2563eb);
+            themeModeText.setBackground(roundedBackground(
+                    isDarkThemeActive() ? 0xff374151 : 0xffeef2ff, dp(16), 0));
+        }
+    }
+
+    private String buildDisplayResolutionLabel() {
+        return DISPLAY_RESOLUTION_1080P.equals(displayResolution) ? "1080p" : "720p";
+    }
+
+    private void toggleDisplayResolution() {
+        setDisplayResolution(DISPLAY_RESOLUTION_1080P.equals(displayResolution)
+                ? DISPLAY_RESOLUTION_720P : DISPLAY_RESOLUTION_1080P);
+    }
+
+    private void setDisplayResolution(String resolution) {
+        displayResolution = DISPLAY_RESOLUTION_1080P.equals(resolution)
+                ? DISPLAY_RESOLUTION_1080P : DISPLAY_RESOLUTION_720P;
+        getPreferencesStore().edit().putString(PREF_DISPLAY_RESOLUTION, displayResolution).apply();
+        updateDisplayResolutionUi();
+        append("后台分辨率已切换为：" + buildDisplayResolutionLabel()
+                + "，下次启动任务时生效。");
+    }
+
+    private int selectedDisplayWidth() {
+        return DISPLAY_RESOLUTION_1080P.equals(displayResolution) ? DISPLAY_1080P_WIDTH : DISPLAY_720P_WIDTH;
+    }
+
+    private int selectedDisplayHeight() {
+        return DISPLAY_RESOLUTION_1080P.equals(displayResolution) ? DISPLAY_1080P_HEIGHT : DISPLAY_720P_HEIGHT;
+    }
+
+    private int selectedDisplayDpi() {
+        return DISPLAY_RESOLUTION_1080P.equals(displayResolution) ? DISPLAY_1080P_DPI : DISPLAY_720P_DPI;
+    }
+
+    private String selectedDisplaySummary() {
+        return selectedDisplayWidth() + " x " + selectedDisplayHeight() + " @ " + selectedDisplayDpi() + "dpi";
+    }
+
+    private void updateDisplayResolutionUi() {
+        if (displayResolutionText != null) {
+            displayResolutionText.setText(buildDisplayResolutionLabel());
+            displayResolutionText.setTextColor(DISPLAY_RESOLUTION_1080P.equals(displayResolution)
+                    ? 0xff0f766e : 0xff2563eb);
+            displayResolutionText.setBackground(roundedBackground(
+                    DISPLAY_RESOLUTION_1080P.equals(displayResolution) ? 0xffe8f7f4 : 0xffe8efff,
+                    dp(16), 0));
+        }
+        if (activeTaskChip != null) {
+            activeTaskChip.setText(selectedDisplaySummary());
+        }
+    }
+
     private void setBackgroundMode(boolean enabled) {
         backgroundMode = enabled;
         getPreferencesStore().edit().putBoolean(PREF_BACKGROUND_MODE, enabled).apply();
@@ -3085,9 +3360,11 @@ public final class MainActivity extends Activity {
         updateBackendModeUi();
         updateDebugModeUi();
         updateBackgroundModeUi();
+        updateThemeModeUi();
+        updateDisplayResolutionUi();
         setPermissionChip(shizukuPermissionText, buildShizukuStatusText(), hasShizukuPermission());
         setPermissionChip(storagePermissionText, hasStoragePermission() ? "已授权" : "去授权", hasStoragePermission());
-        setPermissionChip(packageListPermissionText, canQueryNikkePackage() ? "可用" : "需检查", canQueryNikkePackage());
+        setPermissionChip(overlayPermissionText, hasOverlayPermission() ? "已授权" : "去授权", hasOverlayPermission());
         boolean notificationGranted = Build.VERSION.SDK_INT < 33
                 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
         setPermissionChip(notificationPermissionText, notificationGranted ? "已授权" : "去授权", notificationGranted);
@@ -3109,6 +3386,10 @@ public final class MainActivity extends Activity {
             return true;
         }
         return checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean hasOverlayPermission() {
+        return Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(this);
     }
 
     private String buildShizukuStatusText() {
@@ -3341,6 +3622,16 @@ public final class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 33) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFICATION);
         } else {
+            openAppDetails();
+        }
+    }
+
+    private void openOverlayPermission() {
+        try {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+            intent.setData(Uri.parse("package:" + getPackageName()));
+            startActivity(intent);
+        } catch (Throwable error) {
             openAppDetails();
         }
     }
@@ -3623,6 +3914,7 @@ public final class MainActivity extends Activity {
             public void run() {
                 boolean failed = false;
                 try {
+                    writeTaskOptionsFile();
                     prepareBackendJarAndRunner("com.codex.maanikke.rootprobe.RootImageReaderProbe");
                     forceStopDetectedNikke(false);
                     runBackendShell("rm -f " + REMOTE_RESULT + " " + REMOTE_LOG + " " + REMOTE_LAST + " " + REMOTE_BEFORE + " " + REMOTE_AFTER);
@@ -4287,6 +4579,10 @@ public final class MainActivity extends Activity {
     private void writeTaskOptionsFile() throws Exception {
         StringBuilder builder = new StringBuilder();
         builder.append("# MaaNikke task options generated by Android UI\n");
+        builder.append("maanikke.display.resolution=").append(buildDisplayResolutionLabel()).append('\n');
+        builder.append("maanikke.display.width=").append(selectedDisplayWidth()).append('\n');
+        builder.append("maanikke.display.height=").append(selectedDisplayHeight()).append('\n');
+        builder.append("maanikke.display.dpi=").append(selectedDisplayDpi()).append('\n');
         for (int taskIndex = 0; taskIndex < TaskCatalog.PC_TASKS.length; taskIndex++) {
             TaskCatalog.TaskSpec task = TaskCatalog.PC_TASKS[taskIndex];
             for (int optionIndex = 0; optionIndex < task.options.length; optionIndex++) {

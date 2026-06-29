@@ -84,23 +84,27 @@ public final class RootImageReaderProbe {
         touchProbeAttempted = true;
         touchBeforeNonZeroSamples = capture.getLastNonZeroSamples();
         capture.copyLatestFrameTo(ProbeConfig.BEFORE_TOUCH_FILE);
+        int touchX = ProbeConfig.scaleX(ProbeConfig.TOUCH_X);
+        int touchY = ProbeConfig.scaleY(ProbeConfig.TOUCH_Y);
         logger.log("touch probe start at seconds=" + seconds
-                + " x=" + ProbeConfig.TOUCH_X
-                + " y=" + ProbeConfig.TOUCH_Y
+                + " baseX=" + ProbeConfig.TOUCH_X
+                + " baseY=" + ProbeConfig.TOUCH_Y
+                + " x=" + touchX
+                + " y=" + touchY
                 + " beforeNonZero=" + touchBeforeNonZeroSamples);
         try {
             touchDownResult = input.injectTouch(
                     MotionEvent.ACTION_DOWN,
-                    ProbeConfig.TOUCH_X,
-                    ProbeConfig.TOUCH_Y,
+                    touchX,
+                    touchY,
                     displayId,
                     true
             );
             Thread.sleep(120);
             touchUpResult = input.injectTouch(
                     MotionEvent.ACTION_UP,
-                    ProbeConfig.TOUCH_X,
-                    ProbeConfig.TOUCH_Y,
+                    touchX,
+                    touchY,
                     displayId,
                     false
             );
