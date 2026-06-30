@@ -9,6 +9,7 @@
 - `tools/android_maanikke_debug_apk/`：Android 调试 APK、UI、任务配置、MAA 资源。
 - `tools/android_root_imagereader_probe/`：root/app_process 后端、虚拟显示、ImageReader 抓帧、输入注入。
 - `tools/android_virtual_display_probe/`：早期虚拟显示探针，仅作对照。
+- `supports/`：MAA 项目依赖和支持组件。`supports/shizuku/` 是随仓库提交的 Shizuku 编译依赖；`supports/maacore_sdk/`、`supports/prebuilt/` 是本机缓存，不提交。
 - `docs/`：从历史工作区迁入的 Android MaaNikke 方案、任务映射、OCR/MAA 审计和采集模板。
 - `NIKKE_ANDROID_MAA_DESIGN.md`：安卓端设计记录。
 - `启动安卓投屏.bat`、`稳定安卓投屏.bat`：本机调试投屏启动脚本。
@@ -21,7 +22,7 @@
 - `_ref_*` 外部参考快照。
 - APK、录屏、截图、实机日志、`outputs/` 构建与验证证据。
 
-本机调试缓存可以放在 `outputs/android_probe/`，例如 MaaCore SDK、APK、root 后端 jar 和实机证据；这些内容用于本机复现和构建，不提交到 GitHub。
+本机依赖缓存统一放在 `supports/`，例如 MaaCore SDK 与预编译 native 库；构建结果、APK、root 后端 jar 和实机证据放在 `outputs/android_probe/`。这些本机缓存和产物用于复现与调试，不提交到 GitHub。
 
 ## 当前技术路线
 
@@ -81,8 +82,9 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\tools\android_
 - App 设置页新增只读“运行环境预检”入口，用当前控制器模式检查 Shizuku/root shell、`/data/local/tmp`、`Documents/MaaNikke`、目标游戏包、资源目录、证据文件和 MaaCore 相关库；该入口只写日志，不启动游戏、不创建虚拟显示、不点击任务。
 - 2026-06-30：爬塔企业塔按 PC MaaNikke `climbtower.json` 逻辑修正。未勾选无限塔挑战时，进入“无限之塔初始选择页”后只点击下方四个企业塔区块；1280x720 基准坐标重校准为 `500,515`、`594,515`、`688,515`、`782,515`。修复初始选择页上方“无限之塔”文字导致的详情页误判，并补强企业塔详情页、白色编队页和蓝色“进入战斗”按钮识别；点击企业塔后加长等待并等待稳定场景，避免转场暗屏过早截图。
 - 2026-06-30：正常模式单任务 `claim_climb_tower` 已验证可进入第一场企业塔战斗：OCR 命中 `进入战斗`，点击 `climb_tower_company_1_enter_fight_candidate baseX=760 baseY=670` 后进入 `climb_tower_battle_wait_70s`。当前残留问题是战斗后继续第二个企业塔的收口仍待补强，已观测到 `finalState=climb_tower_company_2_fight_gate_not_confirmed`；后续应优先补“战斗结束后返回/继续下一企业塔”的识别和回退。
-- 2026-06-30：构建脚本新增 `-SkipPreviewNativeBuild`，可在本机 NDK `clang++.exe` 被占用或权限异常时复用 `outputs/android_probe/root_ir_probe/libmaanikke_preview_renderer.so` 正规打包 APK；默认构建路径仍会尝试重新编译 native 预览库。
+- 2026-06-30：构建脚本新增 `-SkipPreviewNativeBuild`，可在本机 NDK `clang++.exe` 被占用或权限异常时复用 `supports/prebuilt/arm64-v8a/libmaanikke_preview_renderer.so` 正规打包 APK；默认构建路径仍会尝试重新编译 native 预览库。
 - 2026-06-30：Android MaaNikke 相关源码、资源、方案文档和本机构建缓存已统一迁入 `F:\Codex\Nikke\Nikke_MAA`。后续只在该独立仓库内改 Android MAA；旧目录 `F:\Codex\Nikke\Nikke` 仅保留为历史混合资料库，不再作为 Android MAA 开发入口。
+- 2026-06-30：MAA 项目依赖和支持组件统一收口到 `supports/`：Shizuku 编译依赖迁入 `supports/shizuku/`，MaaCore SDK 迁入 `supports/maacore_sdk/`，预编译 native fallback 迁入 `supports/prebuilt/`；`outputs/` 只保留构建产物和验证证据。
 
 ## Git 约定
 

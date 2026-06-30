@@ -63,8 +63,8 @@ $signedApk = Join-Path $OutDir 'MaaNikkeAndroidDebug.apk'
 $keystore = Join-Path $OutDir 'maanikke-debug.jks'
 $rootProbeJar = Join-Path $ProjectRoot 'outputs\android_probe\root_ir_probe\maanikke-root-ir-probe.jar'
 $maaCoreBridge = Join-Path $ProjectRoot 'outputs\android_probe\root_ir_probe\libmaanikke_maacore_bridge.so'
-$maaCoreSdkBin = Join-Path $ProjectRoot 'outputs\android_probe\maacore_sdk\v5.11.1\extract\bin'
-$shizukuDir = Join-Path $srcRoot 'third_party\shizuku'
+$maaCoreSdkBin = Join-Path $ProjectRoot 'supports\maacore_sdk\v5.11.1\extract\bin'
+$shizukuDir = Join-Path $ProjectRoot 'supports\shizuku'
 $shizukuAidlJar = Join-Path $shizukuDir 'aidl\classes.jar'
 $shizukuApiJar = Join-Path $shizukuDir 'api\classes.jar'
 $shizukuProviderJar = Join-Path $shizukuDir 'provider\classes.jar'
@@ -132,7 +132,7 @@ foreach ($libName in $maaCoreRuntimeLibs) {
 Copy-Item -LiteralPath $maaCoreBridge -Destination (Join-Path $maaLibAssetDir 'libmaanikke_maacore_bridge.so') -Force
 
 if ($SkipPreviewNativeBuild) {
-    $existingPreviewLib = Join-Path $ProjectRoot 'outputs\android_probe\root_ir_probe\libmaanikke_preview_renderer.so'
+    $existingPreviewLib = Join-Path $ProjectRoot 'supports\prebuilt\arm64-v8a\libmaanikke_preview_renderer.so'
     if (-not (Test-Path -LiteralPath $existingPreviewLib)) {
         throw "SkipPreviewNativeBuild requested but preview renderer is missing: $existingPreviewLib"
     }

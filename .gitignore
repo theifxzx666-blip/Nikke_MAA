@@ -17,6 +17,10 @@ tools/android_virtual_display_probe/build/
 *.aab
 *.dex
 
+# Local support dependency caches
+supports/maacore_sdk/
+supports/prebuilt/
+
 # Local screenshots, recordings, and evidence
 screenshots/
 recordings/
