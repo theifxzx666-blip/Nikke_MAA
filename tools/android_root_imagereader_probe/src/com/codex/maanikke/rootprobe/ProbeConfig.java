@@ -13,10 +13,11 @@ final class ProbeConfig {
     static final int MAX_IMAGES = 5;
     static final int CAPTURE_SECONDS = 60;
     static final String PREVIEW_SOCKET_NAME = "maanikke_preview_frame";
-    static final int PREVIEW_WIDTH = 960;
-    static final int PREVIEW_HEIGHT = 540;
-    static final int PREVIEW_JPEG_QUALITY = 58;
-    static final int PREVIEW_FRAME_MIN_INTERVAL_MS = 90;
+    static final int PREVIEW_WIDTH = 480;
+    static final int PREVIEW_HEIGHT = 270;
+    static final int PREVIEW_JPEG_QUALITY = 42;
+    static final int PREVIEW_FRAME_MIN_INTERVAL_MS = 95;
+    static final File PREVIEW_JPEG_FILE = new File("/data/local/tmp/maanikke_preview_frame.jpg");
     static final int LEGACY_FRAME_FILE_INTERVAL_MS = 1000;
     static final int PREVIEW_CLIENT_HEARTBEAT_MS = 900;
     static final int PREVIEW_CLIENT_IDLE_TIMEOUT_MS = 30000;
@@ -32,7 +33,7 @@ final class ProbeConfig {
     static final int HOME_RETURN_SETTLE_MS = 1700;
     static final int ARK_HUB_WAIT_ATTEMPTS = 8;
     static final int ARK_HUB_WAIT_INTERVAL_MS = 1100;
-    static final int ARK_SUBPAGE_WAIT_ATTEMPTS = 11;
+    static final int ARK_SUBPAGE_WAIT_ATTEMPTS = 24;
     static final int ARK_SUBPAGE_FIRST_WAIT_MS = 2200;
     static final int ARK_SUBPAGE_WAIT_INTERVAL_MS = 1100;
     static final String VD_NAME = "MaaNikkeRootIR-" + WIDTH + "x" + HEIGHT;
@@ -71,7 +72,11 @@ final class ProbeConfig {
     static final File TASK_AFTER_MAIL_OPEN_FILE = new File("/data/local/tmp/maanikke_task_after_mail_open.png");
     static final File TASK_AFTER_MAIL_CLAIM_FILE = new File("/data/local/tmp/maanikke_task_after_mail_claim.png");
     static final File TASK_AFTER_MAIL_CONFIRM_FILE = new File("/data/local/tmp/maanikke_task_after_mail_confirm.png");
+    static final File TASK_BEFORE_CLIMB_TOWER_TARGET_FILE =
+            new File("/data/local/tmp/maanikke_task_before_climb_tower_target.png");
     static final File TASK_AFTER_GIFT_CONFIRM_FILE = new File("/data/local/tmp/maanikke_task_after_gift_confirm.png");
+    static final File TASK_AFTER_INQUIRY_BATCH_DIALOG_FILE =
+            new File("/data/local/tmp/maanikke_task_after_inquiry_batch_dialog.png");
     static final File TASK_OPTIONS_FILE = new File("/data/local/tmp/maanikke_task_options.properties");
     static final File DAILY_ACTION_LEDGER_FILE =
             new File("/storage/emulated/0/Documents/MaaNikke/logs/daily-action-ledger.tsv");
@@ -286,7 +291,9 @@ final class ProbeConfig {
     static final int INQUIRY_TOP_NIKKE_3_Y = 242;
     static final int INQUIRY_BATCH_BUTTON_X = 1226;
     static final int INQUIRY_BATCH_BUTTON_Y = 676;
-    static final int INQUIRY_BATCH_CONFIRM_X = 640;
+    static final int INQUIRY_BATCH_EXECUTE_X = 780;
+    static final int INQUIRY_BATCH_EXECUTE_Y = 632;
+    static final int INQUIRY_BATCH_CONFIRM_X = 735;
     static final int INQUIRY_BATCH_CONFIRM_Y = 452;
     static final int INQUIRY_NEXT_STEP_X = 640;
     static final int INQUIRY_NEXT_STEP_Y = 560;
@@ -298,7 +305,7 @@ final class ProbeConfig {
     static final int INQUIRY_BASIC_GIFT_Y = 372;
     static final int INQUIRY_SEND_GIFT_X = 780;
     static final int INQUIRY_SEND_GIFT_Y = 650;
-    static final int INQUIRY_SEND_GIFT_CONFIRM_X = 640;
+    static final int INQUIRY_SEND_GIFT_CONFIRM_X = 735;
     static final int INQUIRY_SEND_GIFT_CONFIRM_Y = 452;
     static final int INQUIRY_GIFT_BACK_X = 32;
     static final int INQUIRY_GIFT_BACK_Y = 675;
@@ -357,14 +364,14 @@ final class ProbeConfig {
     static final int CLIMB_TOWER_CHOICE_BACK_Y = 680;
     static final int CLIMB_TOWER_UNLIMITED_X = 640;
     static final int CLIMB_TOWER_UNLIMITED_Y = 300;
-    static final int CLIMB_TOWER_COMPANY_1_X = 783;
-    static final int CLIMB_TOWER_COMPANY_1_Y = 529;
-    static final int CLIMB_TOWER_COMPANY_2_X = 687;
-    static final int CLIMB_TOWER_COMPANY_2_Y = 531;
-    static final int CLIMB_TOWER_COMPANY_3_X = 595;
-    static final int CLIMB_TOWER_COMPANY_3_Y = 524;
-    static final int CLIMB_TOWER_COMPANY_4_X = 498;
-    static final int CLIMB_TOWER_COMPANY_4_Y = 518;
+    static final int CLIMB_TOWER_COMPANY_1_X = 500;
+    static final int CLIMB_TOWER_COMPANY_1_Y = 515;
+    static final int CLIMB_TOWER_COMPANY_2_X = 594;
+    static final int CLIMB_TOWER_COMPANY_2_Y = 515;
+    static final int CLIMB_TOWER_COMPANY_3_X = 688;
+    static final int CLIMB_TOWER_COMPANY_3_Y = 515;
+    static final int CLIMB_TOWER_COMPANY_4_X = 782;
+    static final int CLIMB_TOWER_COMPANY_4_Y = 515;
     static final int CLIMB_TOWER_ENTER_FIGHT_X = 760;
     static final int CLIMB_TOWER_ENTER_FIGHT_Y = 670;
     static final int CLIMB_TOWER_BACK_TO_LIST_X = 990;

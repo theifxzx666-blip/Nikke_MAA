@@ -76,6 +76,9 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\tools\android_
 - 2026-06-29：OCR 证据回归与 MaaCoreProbe 增强已同步。`validate_ocr_evidence.ps1` 可校验 JSON、图片尺寸、ROI 边界并裁剪 ROI；混合工作区证据 `outputs/android_probe/ocr_regression_20260629-110536/` 显示 5 个启用 ROI 通过、2 个禁用待补。
 - 2026-06-29：只读实机探针 `outputs/android_probe/maacore_probe_enhanced_20260629-111420/` 返回 `finalState=maacore_probe_native_ocr_ready`、`actionCount=0`、`coreReady=true`、`controlUnitReady=true`、`evidenceCasesReady=true`、`missingEvidenceCount=2`、`bridgeOcrSucceeded=true`。
 - App 设置页新增只读“运行环境预检”入口，用当前控制器模式检查 Shizuku/root shell、`/data/local/tmp`、`Documents/MaaNikke`、目标游戏包、资源目录、证据文件和 MaaCore 相关库；该入口只写日志，不启动游戏、不创建虚拟显示、不点击任务。
+- 2026-06-30：爬塔企业塔按 PC MaaNikke `climbtower.json` 逻辑修正。未勾选无限塔挑战时，进入“无限之塔初始选择页”后只点击下方四个企业塔区块；1280x720 基准坐标重校准为 `500,515`、`594,515`、`688,515`、`782,515`。修复初始选择页上方“无限之塔”文字导致的详情页误判，并补强企业塔详情页、白色编队页和蓝色“进入战斗”按钮识别；点击企业塔后加长等待并等待稳定场景，避免转场暗屏过早截图。
+- 2026-06-30：正常模式单任务 `claim_climb_tower` 已验证可进入第一场企业塔战斗：OCR 命中 `进入战斗`，点击 `climb_tower_company_1_enter_fight_candidate baseX=760 baseY=670` 后进入 `climb_tower_battle_wait_70s`。当前残留问题是战斗后继续第二个企业塔的收口仍待补强，已观测到 `finalState=climb_tower_company_2_fight_gate_not_confirmed`；后续应优先补“战斗结束后返回/继续下一企业塔”的识别和回退。
+- 2026-06-30：构建脚本新增 `-SkipPreviewNativeBuild`，可在本机 NDK `clang++.exe` 被占用或权限异常时复用 `outputs/android_probe/root_ir_probe/libmaanikke_preview_renderer.so` 正规打包 APK；默认构建路径仍会尝试重新编译 native 预览库。
 
 ## Git 约定
 

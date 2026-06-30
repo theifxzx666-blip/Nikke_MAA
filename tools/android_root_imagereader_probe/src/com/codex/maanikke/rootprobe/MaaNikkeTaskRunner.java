@@ -1810,10 +1810,14 @@ public final class MaaNikkeTaskRunner {
             logger.log("claim_free_shop stopped, shop page did not open");
             return;
         }
-        if (!isShopPageVisible(ProbeConfig.TASK_AFTER_OPEN_FILE)) {
+        boolean shopPageVisible = isShopPageVisible(ProbeConfig.TASK_AFTER_OPEN_FILE);
+        boolean shopPageOcrHit = probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_OPEN_FILE,
+                "freeshopdaily.checkinmall", new int[]{0, 0, 120, 70},
+                new String[]{"\u767e\u8d27\u5546\u5e97", "\u5546\u5e97"});
+        if (!shopPageVisible && !shopPageOcrHit) {
             finalState = "free_shop_page_not_confirmed";
             actionSuccess = false;
-            logger.log("claim_free_shop stopped, shop page visual confirmation failed");
+            logger.log("claim_free_shop stopped, shop page visual and OCR confirmation failed");
             return;
         }
         if (!basicShopEnabled && !arenaShopEnabled && !bodyTagShopEnabled && !scrapShopEnabled) {
@@ -1830,6 +1834,21 @@ public final class MaaNikkeTaskRunner {
             handledAnyBranch = true;
             tap(input, ProbeConfig.SHOP_TAB_BASIC_X, ProbeConfig.SHOP_TAB_BASIC_Y, "free_shop_tab_basic");
             Thread.sleep(1000);
+            capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
+            copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+            boolean basicShopPageVisible = isShopPageVisible(ProbeConfig.TASK_AFTER_WAIT_FILE);
+            boolean basicShopOcrHit = probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
+                    "freeshopdaily.checkinbasicshop", new int[]{42, 238, 214, 75},
+                    new String[]{"\u666e\u901a\u5546\u5e97"});
+            if (!basicShopPageVisible && !basicShopOcrHit) {
+                finalState = "free_shop_basic_tab_not_confirmed";
+                actionSuccess = false;
+                logger.log("claim_free_shop stopped, basic shop tab visual and OCR confirmation failed");
+                return;
+            }
+            probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
+                    "freeshopdaily.free_item_candidate", new int[]{70, 360, 170, 130},
+                    new String[]{"\u514d\u8d39"});
             boolean purchaseGuarded = !dryRun
                     && (shouldSkipDailyFinalAction("free_shop", "purchase_quantity")
                     || shouldSkipDailyFinalAction("free_shop", "purchase_buy"));
@@ -1843,6 +1862,9 @@ public final class MaaNikkeTaskRunner {
                 capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
                 copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
                 purchaseDialogVisible = isShopPurchaseDialogVisible(ProbeConfig.TASK_AFTER_WAIT_FILE);
+                probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
+                        "freeshopdaily.purchase_dialog_candidate", new int[]{535, 335, 285, 295},
+                        new String[]{"\u8d2d\u4e70", "\u786e\u8ba4", "\u514d\u8d39"});
             }
 
             if (dryRun && purchaseDialogVisible) {
@@ -1897,6 +1919,9 @@ public final class MaaNikkeTaskRunner {
                 Thread.sleep(1500);
                 capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
                 copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+                probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
+                        "freeshopdaily.refresh_confirm_candidate", new int[]{520, 350, 340, 170},
+                        new String[]{"\u5237\u65b0", "\u786e\u8ba4", "\u514d\u8d39"});
             } else {
                 logger.log("free shop refresh skipped by daily guard before opening confirm");
             }
@@ -2178,6 +2203,10 @@ public final class MaaNikkeTaskRunner {
                 + " claimOcrHit=" + claimOcrHit
                 + " dispatchVisible=" + dispatchVisible
                 + " dispatchOcrHit=" + dispatchOcrHit);
+        if (!dispatchVisible && dispatchOcrHit) {
+            logger.log("dispatch board dispatch-all OCR text is present but visual button state is disabled;"
+                    + " keep no-click gate for dispatch-all");
+        }
         if (dryRun) {
             capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ACTION_FILE);
             copyFile(ProbeConfig.TASK_AFTER_ACTION_FILE, ProbeConfig.TASK_FRAME_FILE);
@@ -2190,17 +2219,32 @@ public final class MaaNikkeTaskRunner {
                     + " dispatchOcrHit=" + dispatchOcrHit);
             return;
         }
-        if (!claimVisible && !dispatchVisible) {
+        boolean claimActionConfirmed = claimVisible && claimOcrHit;
+        boolean dispatchActionConfirmed = dispatchVisible && dispatchOcrHit;
+        if (!claimActionConfirmed && !dispatchActionConfirmed) {
             capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ACTION_FILE);
             copyFile(ProbeConfig.TASK_AFTER_ACTION_FILE, ProbeConfig.TASK_FRAME_FILE);
-            finalState = "dispatch_board_no_claim_or_dispatch_button";
-            actionSuccess = true;
-            logger.log("claim_dispatch_board stopped because no actionable dispatch button is visible");
+            if (claimVisible || dispatchVisible || claimOcrHit || dispatchOcrHit) {
+                finalState = "dispatch_board_button_ocr_not_confirmed";
+                actionSuccess = false;
+                logger.log("claim_dispatch_board stopped because dispatch button visual/OCR evidence mismatched"
+                        + " claimVisible=" + claimVisible
+                        + " claimOcrHit=" + claimOcrHit
+                        + " dispatchVisible=" + dispatchVisible
+                        + " dispatchOcrHit=" + dispatchOcrHit);
+            } else {
+                finalState = "dispatch_board_no_claim_or_dispatch_button";
+                actionSuccess = true;
+                logger.log("claim_dispatch_board stopped because no actionable dispatch button is visible");
+            }
             return;
         }
 
         boolean claimedAny = false;
-        if (claimVisible) {
+        if (claimVisible && !claimOcrHit) {
+            logger.log("dispatch claim-all skipped because OCR did not confirm the claim button");
+        }
+        if (claimActionConfirmed) {
             if (tapDailyFinalActionIfNeeded(input, "dispatch_board", "claim_all",
                     ProbeConfig.DISPATCH_CLAIM_ALL_X, ProbeConfig.DISPATCH_CLAIM_ALL_Y,
                     "dispatch_claim_all")) {
@@ -2221,15 +2265,25 @@ public final class MaaNikkeTaskRunner {
         dispatchOcrHit = probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
                 "dispatchboard.dispatchall_after_claim", new int[]{582, 580, 118, 54},
                 new String[]{"全部派遣"});
-        if (!dispatchVisible) {
+        if (!dispatchVisible || !dispatchOcrHit) {
             capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ACTION_FILE);
             copyFile(ProbeConfig.TASK_AFTER_ACTION_FILE, ProbeConfig.TASK_FRAME_FILE);
-            finalState = claimedAny
-                    ? "dispatch_board_claim_only_attempted"
-                    : "dispatch_board_nothing_to_dispatch";
-            actionSuccess = true;
-            logger.log("claim_dispatch_board completed without dispatch-all because dispatch button is not visible"
-                    + " dispatchOcrHit=" + dispatchOcrHit);
+            if (dispatchVisible && !dispatchOcrHit) {
+                finalState = claimedAny
+                        ? "dispatch_board_claim_only_dispatch_ocr_not_confirmed"
+                        : "dispatch_board_dispatch_ocr_not_confirmed";
+                actionSuccess = claimedAny;
+                logger.log("claim_dispatch_board stopped before dispatch-all because OCR did not confirm button"
+                        + " dispatchVisible=" + dispatchVisible
+                        + " dispatchOcrHit=" + dispatchOcrHit);
+            } else {
+                finalState = claimedAny
+                        ? "dispatch_board_claim_only_attempted"
+                        : "dispatch_board_nothing_to_dispatch";
+                actionSuccess = true;
+                logger.log("claim_dispatch_board completed without dispatch-all because dispatch button is not visible"
+                        + " dispatchOcrHit=" + dispatchOcrHit);
+            }
             return;
         }
 
@@ -2293,7 +2347,7 @@ public final class MaaNikkeTaskRunner {
         Thread.sleep(2200);
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
         copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
-        probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
+        boolean inquiryTitleOcrHit = probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
                 "inquiryandgift.checkinquiry", new int[]{556, 52, 168, 39},
                 new String[]{"咨询"});
         if (isHomeNoticeListVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)
@@ -2304,33 +2358,121 @@ public final class MaaNikkeTaskRunner {
             Thread.sleep(2200);
             capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
             copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
-            probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
+            inquiryTitleOcrHit = probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
                     "inquiryandgift.checkinquiry_retry", new int[]{556, 52, 168, 39},
-                    new String[]{"咨询"});
+                    new String[]{"咨询"}) || inquiryTitleOcrHit;
         }
-        probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
+        boolean inquiryPageVisibleBeforeBatch = isInquiryPageVisible(ProbeConfig.TASK_AFTER_WAIT_FILE);
+        boolean batchButtonOcrHit = probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
                 "inquiryandgift.1keytoinquiry", new int[]{1176, 650, 100, 57},
                 new String[]{"批量咨询"});
+        if (!inquiryPageVisibleBeforeBatch && !inquiryTitleOcrHit && !batchButtonOcrHit) {
+            capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ACTION_FILE);
+            copyFile(ProbeConfig.TASK_AFTER_ACTION_FILE, ProbeConfig.TASK_FRAME_FILE);
+            finalState = "inquiry_page_not_confirmed_before_batch";
+            actionSuccess = false;
+            logger.log("claim_inquiry_and_gift stopped before batch tap because inquiry page was not confirmed"
+                    + " pageVisible=" + inquiryPageVisibleBeforeBatch
+                    + " titleOcrHit=" + inquiryTitleOcrHit
+                    + " batchButtonOcrHit=" + batchButtonOcrHit);
+            return;
+        }
         tap(input, ProbeConfig.INQUIRY_BATCH_BUTTON_X, ProbeConfig.INQUIRY_BATCH_BUTTON_Y,
                 "inquiry_batch_button");
         Thread.sleep(1600);
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
         copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
-        probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
+        copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_AFTER_INQUIRY_BATCH_DIALOG_FILE);
+        boolean batchDialogOcrHit = probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
                 "inquiryandgift.click1keytoinquiry", new int[]{726, 601, 114, 55},
                 new String[]{"批量咨询"});
-        probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
-                "inquiryandgift.confirm1keytoinquiry", new int[]{623, 363, 225, 154},
-                new String[]{"确认"});
+        if (!batchDialogOcrHit) {
+            tap(input, ProbeConfig.INQUIRY_CLOSE_X, ProbeConfig.INQUIRY_CLOSE_Y,
+                    "inquiry_batch_execute_missing_close");
+            Thread.sleep(1200);
+            runBackToHomeTask(capture, input, false);
+            boolean homeClear = "home_clear".equals(finalState);
+            finalState = homeClear
+                    ? "inquiry_batch_execute_not_confirmed_home_clear"
+                    : "inquiry_batch_execute_not_confirmed_home_not_confirmed";
+            actionSuccess = false;
+            logger.log("claim_inquiry_and_gift stopped because batch execute page was not confirmed"
+                    + " batchDialogOcrHit=" + batchDialogOcrHit
+                    + " dryRun=" + dryRun
+                    + " homeClear=" + homeClear);
+            return;
+        }
+        boolean batchConsultSkipped = false;
         if (dryRun) {
-            logger.log("debug dry-run previewed inquiry batch confirm; skip batch consult confirmation");
+            logger.log("debug dry-run previewed inquiry batch selection page; skip batch execute and confirmation");
             if (giftCount > 0) {
                 tap(input, ProbeConfig.INQUIRY_CLOSE_X, ProbeConfig.INQUIRY_CLOSE_Y,
-                        "inquiry_batch_preview_close");
+                        "inquiry_batch_selection_preview_close");
                 Thread.sleep(900);
                 runGiftForTopNikke(capture, input, 0, true);
             }
+        } else if (shouldSkipDailyFinalAction("inquiry_and_gift", "batch_consult")) {
+            batchConsultSkipped = true;
+            logger.log("inquiry batch consult skipped by daily guard before execute");
+            tap(input, ProbeConfig.INQUIRY_CLOSE_X, ProbeConfig.INQUIRY_CLOSE_Y,
+                    "inquiry_batch_guard_close");
+            Thread.sleep(1200);
+            for (int index = 0; index < giftCount; index++) {
+                runGiftForTopNikke(capture, input, index, false);
+            }
         } else {
+            tap(input, ProbeConfig.INQUIRY_BATCH_EXECUTE_X, ProbeConfig.INQUIRY_BATCH_EXECUTE_Y,
+                    "inquiry_batch_execute");
+            Thread.sleep(1800);
+            capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
+            copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+        }
+        boolean batchConfirmPrimaryOcrHit = false;
+        boolean batchConfirmButtonOcrHit = false;
+        boolean batchConfirmWideOcrHit = false;
+        if (!dryRun && !batchConsultSkipped) {
+            batchConfirmPrimaryOcrHit = probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
+                    "inquiryandgift.confirm1keytoinquiry.primary", new int[]{623, 363, 225, 154},
+                    new String[]{"确认"});
+            batchConfirmButtonOcrHit = probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
+                    "inquiryandgift.confirm1keytoinquiry.button", new int[]{590, 420, 300, 86},
+                    new String[]{"确认"});
+            batchConfirmWideOcrHit = probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
+                    "inquiryandgift.confirm1keytoinquiry.wide", new int[]{520, 350, 360, 180},
+                    new String[]{"确认"});
+        }
+        boolean batchConfirmOcrHit = batchConfirmPrimaryOcrHit
+                || batchConfirmButtonOcrHit
+                || batchConfirmWideOcrHit;
+        if (!dryRun && !batchConsultSkipped) {
+            logger.log("inquiry batch confirm ocr summary primary=" + batchConfirmPrimaryOcrHit
+                    + " button=" + batchConfirmButtonOcrHit
+                    + " wide=" + batchConfirmWideOcrHit
+                    + " hit=" + batchConfirmOcrHit);
+        }
+        if (!dryRun && !batchConsultSkipped && !batchConfirmOcrHit) {
+            tap(input, ProbeConfig.INQUIRY_CLOSE_X, ProbeConfig.INQUIRY_CLOSE_Y,
+                    "inquiry_batch_confirm_missing_close");
+            Thread.sleep(1200);
+            runBackToHomeTask(capture, input, false);
+            boolean homeClear = "home_clear".equals(finalState);
+            finalState = homeClear
+                    ? "inquiry_batch_confirm_not_confirmed_home_clear"
+                    : "inquiry_batch_confirm_not_confirmed_home_not_confirmed";
+            actionSuccess = false;
+            logger.log("claim_inquiry_and_gift stopped because batch confirm OCR gate was not confirmed"
+                    + " batchDialogOcrHit=" + batchDialogOcrHit
+                    + " batchConfirmOcrHit=" + batchConfirmOcrHit
+                    + " batchConfirmPrimaryOcrHit=" + batchConfirmPrimaryOcrHit
+                    + " batchConfirmButtonOcrHit=" + batchConfirmButtonOcrHit
+                    + " batchConfirmWideOcrHit=" + batchConfirmWideOcrHit
+                    + " dryRun=" + dryRun
+                    + " homeClear=" + homeClear);
+            return;
+        }
+        if (dryRun) {
+            logger.log("debug dry-run completed inquiry batch preview without final execute");
+        } else if (!batchConsultSkipped) {
             if (tapDailyFinalActionIfNeeded(input, "inquiry_and_gift", "batch_consult",
                     ProbeConfig.INQUIRY_BATCH_CONFIRM_X, ProbeConfig.INQUIRY_BATCH_CONFIRM_Y,
                     "inquiry_batch_confirm")) {
@@ -2354,6 +2496,8 @@ public final class MaaNikkeTaskRunner {
                         "inquiry_batch_guard_close");
                 Thread.sleep(1200);
             }
+        }
+        if (!dryRun && !batchConsultSkipped) {
             for (int index = 0; index < giftCount; index++) {
                 runGiftForTopNikke(capture, input, index, false);
             }
@@ -2399,9 +2543,20 @@ public final class MaaNikkeTaskRunner {
         Thread.sleep(1900);
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
         copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
-        probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
+        boolean giftPageOcrHit = probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
                 "inquiryandgift.checksendgift_" + (safeIndex + 1), new int[]{575, 82, 141, 40},
                 new String[]{"送礼"});
+        if (!giftPageOcrHit) {
+            capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ACTION_FILE);
+            copyFile(ProbeConfig.TASK_AFTER_ACTION_FILE, ProbeConfig.TASK_FRAME_FILE);
+            tap(input, ProbeConfig.INQUIRY_GIFT_BACK_X, ProbeConfig.INQUIRY_GIFT_BACK_Y,
+                    "gift_page_ocr_missing_back_" + (safeIndex + 1));
+            Thread.sleep(1400);
+            logger.log("gift stopped before selecting gift because send-gift page OCR was not confirmed"
+                    + " index=" + safeIndex
+                    + " dryRun=" + dryRun);
+            return;
+        }
         String giftAction = "gift_" + (safeIndex + 1);
         if (!dryRun && shouldSkipDailyFinalAction("inquiry_and_gift", giftAction)) {
             capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ACTION_FILE);
@@ -2414,7 +2569,23 @@ public final class MaaNikkeTaskRunner {
         }
         tap(input, ProbeConfig.INQUIRY_BASIC_GIFT_X, ProbeConfig.INQUIRY_BASIC_GIFT_Y,
                 "gift_basic_item_" + (safeIndex + 1));
-        Thread.sleep(1400);
+        Thread.sleep(1700);
+        capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
+        copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+        boolean sendGiftTemplateHit = probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
+                "inquiryandgift.sendgift_gate_" + (safeIndex + 1), new int[]{650, 600, 230, 90},
+                new String[]{"閫佺ぜ", "纭"});
+        boolean sendGiftButtonVisible = isInquirySendGiftReadyVisible(ProbeConfig.TASK_AFTER_WAIT_FILE);
+        logger.log("gift send gate index=" + safeIndex
+                + " sendGiftTemplateHit=" + sendGiftTemplateHit
+                + " sendGiftButtonVisible=" + sendGiftButtonVisible);
+        if (!sendGiftButtonVisible && !sendGiftTemplateHit) {
+            tap(input, ProbeConfig.INQUIRY_GIFT_BACK_X, ProbeConfig.INQUIRY_GIFT_BACK_Y,
+                    "gift_send_gate_missing_back_" + (safeIndex + 1));
+            Thread.sleep(1400);
+            logger.log("gift stopped because no selected gift/send button was confirmed index=" + safeIndex);
+            return;
+        }
         if (dryRun) {
             capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ACTION_FILE);
             copyFile(ProbeConfig.TASK_AFTER_ACTION_FILE, ProbeConfig.TASK_FRAME_FILE);
@@ -2439,6 +2610,19 @@ public final class MaaNikkeTaskRunner {
         Thread.sleep(1600);
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
         copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+        boolean sendConfirmOcrHit = probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
+                "inquiryandgift.claimsendgift_" + (safeIndex + 1), new int[]{540, 360, 280, 160},
+                new String[]{"纭"});
+        boolean sendConfirmVisible = isGenericConfirmDialogVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)
+                || sendConfirmOcrHit;
+        if (!sendConfirmVisible) {
+            tap(input, ProbeConfig.INQUIRY_GIFT_BACK_X, ProbeConfig.INQUIRY_GIFT_BACK_Y,
+                    "gift_confirm_missing_back_" + (safeIndex + 1));
+            Thread.sleep(1400);
+            logger.log("gift stopped because send confirm dialog was not confirmed index=" + safeIndex
+                    + " sendConfirmOcrHit=" + sendConfirmOcrHit);
+            return;
+        }
         if (!tapDailyFinalActionIfNeeded(input, "inquiry_and_gift", giftAction,
                 ProbeConfig.INQUIRY_SEND_GIFT_CONFIRM_X, ProbeConfig.INQUIRY_SEND_GIFT_CONFIRM_Y,
                 "gift_send_confirm_" + (safeIndex + 1))) {
@@ -2668,7 +2852,10 @@ public final class MaaNikkeTaskRunner {
         boolean bridgeLoadReady = false;
         boolean bridgeCallReady = false;
         boolean bridgeCachedImage = false;
+        boolean bridgeOcrExecuted = false;
         boolean bridgeOcrSucceeded = false;
+        String bridgeFixturePath = "";
+        String bridgeFixtureReport = "";
         if (resourcePayloadReady && libraryReady && nativeLoadReady && controlUnitReady && bridgeReady) {
             try {
                 MaaCoreNativeBridge.load(bridgePath);
@@ -2682,8 +2869,27 @@ public final class MaaNikkeTaskRunner {
                         || bridgeReport.indexOf("fileControllerCreated=true") >= 0);
                 bridgeCachedImage = bridgeReport.indexOf("androidCachedImage=true") >= 0
                         || bridgeReport.indexOf("fileCachedImage=true") >= 0;
-                bridgeOcrSucceeded = bridgeReport.indexOf("androidSucceeded=true") >= 0
+                bridgeOcrExecuted = bridgeReport.indexOf("androidSucceeded=true") >= 0
                         || bridgeReport.indexOf("fileSucceeded=true") >= 0;
+                bridgeOcrSucceeded = bridgeReport.indexOf("androidHit=true") >= 0
+                        || bridgeReport.indexOf("fileHit=true") >= 0;
+                if (!bridgeOcrSucceeded && evidenceStatus.path.length() > 0) {
+                    File evidenceRoot = new File(evidenceStatus.path).getParentFile();
+                    File fixtureFile = evidenceRoot == null ? null
+                            : new File(evidenceRoot, "full/mail_after_open_for_apk.png");
+                    if (fixtureFile != null && fixtureFile.exists()) {
+                        bridgeFixturePath = fixtureFile.getAbsolutePath();
+                        bridgeFixtureReport = MaaCoreNativeBridge.runProbe(displayId, libraryPath, controlUnitPath,
+                                resourcePath, bridgeFixturePath,
+                                buildMaaCoreOcrParamJson(new int[]{569, 55, 159, 97},
+                                        new String[]{"\u90ae\u7bb1"}));
+                        bridgeOcrExecuted = bridgeOcrExecuted
+                                || bridgeFixtureReport.indexOf("androidSucceeded=true") >= 0
+                                || bridgeFixtureReport.indexOf("fileSucceeded=true") >= 0;
+                        bridgeOcrSucceeded = bridgeFixtureReport.indexOf("androidHit=true") >= 0
+                                || bridgeFixtureReport.indexOf("fileHit=true") >= 0;
+                    }
+                }
             } catch (Throwable error) {
                 bridgeError = error.getClass().getSimpleName() + ":" + String.valueOf(error.getMessage());
                 bridgeError = bridgeError.replace('\n', ' ').replace('\r', ' ');
@@ -2750,14 +2956,19 @@ public final class MaaNikkeTaskRunner {
                 + "bridgeLoadReady=" + bridgeLoadReady + "\n"
                 + "bridgeCallReady=" + bridgeCallReady + "\n"
                 + "bridgeCachedImage=" + bridgeCachedImage + "\n"
+                + "bridgeOcrExecuted=" + bridgeOcrExecuted + "\n"
                 + "bridgeOcrSucceeded=" + bridgeOcrSucceeded + "\n"
                 + "bridgeError=" + bridgeError + "\n"
+                + "bridgeFixturePath=" + bridgeFixturePath + "\n"
                 + "quickBattleRoiVisibleByJavaFallback=" + quickBattleVisible + "\n"
                 + "challengeBossVisibleByJavaFallback=" + challengeBossVisible + "\n"
                 + "next=" + nextStep + "\n"
                 + "bridgeReportBegin\n"
                 + bridgeReport
-                + "bridgeReportEnd\n";
+                + "bridgeReportEnd\n"
+                + "bridgeFixtureReportBegin\n"
+                + bridgeFixtureReport
+                + "bridgeFixtureReportEnd\n";
         writeTextFile(ProbeConfig.MAACORE_PROBE_REPORT_FILE, report);
         logger.log(report.replace('\n', ';'));
 
@@ -2886,9 +3097,11 @@ public final class MaaNikkeTaskRunner {
                 }
             }
 
-            int missingEvidenceCount = disabledCases + enabledMissingImages;
+            int missingEvidenceCount = enabledMissingImages;
             boolean ready = totalCases > 0 && enabledCases > 0 && enabledMissingImages == 0;
-            String detail = "enabledMissingImages=" + enabledMissingImages;
+            String detail = "enabledMissingImages=" + enabledMissingImages
+                    + ";disabledCases=" + disabledCases
+                    + ";pendingImageCases=" + pendingImageCases;
             return new EvidenceCasesStatus(ready, path, totalCases, enabledCases, disabledCases,
                     pendingImageCases, missingEvidenceCount, detail);
         } catch (Throwable error) {
@@ -3054,12 +3267,11 @@ public final class MaaNikkeTaskRunner {
         StringBuilder builder = new StringBuilder();
         builder.append("{\"recognition\":\"OCR\"");
         if (roi != null && roi.length >= 4) {
-            int[] scaled = scaleRoi(roi);
             builder.append(",\"roi\":[")
-                    .append(scaled[0]).append(',')
-                    .append(scaled[1]).append(',')
-                    .append(scaled[2]).append(',')
-                    .append(scaled[3]).append(']');
+                    .append(roi[0]).append(',')
+                    .append(roi[1]).append(',')
+                    .append(roi[2]).append(',')
+                    .append(roi[3]).append(']');
         }
         if (expected != null && expected.length > 0) {
             builder.append(",\"expected\":[");
@@ -3115,6 +3327,13 @@ public final class MaaNikkeTaskRunner {
                 || report.indexOf("剩余拦截次数") >= 0);
     }
 
+    private boolean shouldFreezeInterceptionDangerousActions() {
+        String value = taskOptionValue(9, "Yes");
+        return !"No".equalsIgnoreCase(value)
+                && !"false".equalsIgnoreCase(value)
+                && !"0".equals(value);
+    }
+
     private void runClaimInterceptionTask(FrameCaptureBackend capture, InputInjector input, boolean dryRun)
             throws Exception {
         boolean manualBossOnMonday = taskOptionYes(0, false);
@@ -3122,6 +3341,15 @@ public final class MaaNikkeTaskRunner {
         int bossIndex = interceptionBossIndex(bossName);
         logger.log("claim_interception options manualBossOnMonday=" + manualBossOnMonday
                 + " bossName=" + bossName + " bossIndex=" + bossIndex);
+        if (shouldFreezeInterceptionDangerousActions()) {
+            capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ACTION_FILE);
+            copyFile(ProbeConfig.TASK_AFTER_ACTION_FILE, ProbeConfig.TASK_FRAME_FILE);
+            finalState = "interception_frozen_before_entry_pending_boss_popup_mapping";
+            actionSuccess = true;
+            logger.log("claim_interception fully frozen before opening Ark/interception entry;"
+                    + " skip every game-side interception tap until popup mapping is verified offline");
+            return;
+        }
         if (!openArkSubpage(capture, input, "interception", ProbeConfig.INTERCEPTION_ENTRY_X,
                 ProbeConfig.INTERCEPTION_ENTRY_Y, "interception_entry")) {
             return;
@@ -3200,10 +3428,11 @@ public final class MaaNikkeTaskRunner {
             boolean sweepVisible = isInterceptionQuickBattleVisible(ProbeConfig.TASK_AFTER_WAIT_FILE);
             boolean challengeVisible = isInterceptionChallengeBossVisible(ProbeConfig.TASK_AFTER_WAIT_FILE);
             boolean disabledQuickVisible = isInterceptionDisabledQuickBattleVisible(ProbeConfig.TASK_AFTER_WAIT_FILE);
-            if (!sweepVisible) {
+            if (!sweepVisible || !quickBattleOcrHit || challengeVisible) {
                 finalState = sweepCount > 0
                         ? "interception_quick_battle_all_attempts_used"
-                        : (noAttemptsOcrHit
+                        : (!sweepVisible
+                        ? (noAttemptsOcrHit
                                 ? "interception_no_remaining_attempts"
                                 : (quickBattleOcrHit
                                         ? "interception_quick_battle_disabled"
@@ -3211,21 +3440,25 @@ public final class MaaNikkeTaskRunner {
                                 ? "interception_challenge_boss_visible_no_sweep"
                                 : (disabledQuickVisible
                                         ? "interception_quick_battle_disabled_no_sweep"
-                                        : "interception_quick_battle_not_visible"))));
+                                        : "interception_quick_battle_not_visible"))))
+                        : (challengeVisible
+                                ? "interception_quick_battle_ocr_not_confirmed_challenge_visible"
+                                : "interception_quick_battle_ocr_not_confirmed"));
                 logger.log("interception sweep loop stopped before tap attempt=" + attempt
-                        + " sweepVisible=false challengeVisible=" + challengeVisible
+                        + " sweepVisible=" + sweepVisible
+                        + " challengeVisible=" + challengeVisible
                         + " disabledQuickVisible=" + disabledQuickVisible
                         + " maaCoreQuickBattleOcrHit=" + quickBattleOcrHit
                         + " maaCoreNoAttemptsOcrHit=" + noAttemptsOcrHit);
                 break;
             }
-            if (!tapDailyFinalActionIfNeeded(input, "interception", "sweep_" + attempt,
-                    ProbeConfig.INTERCEPTION_SWEEP_BUTTON_X, ProbeConfig.INTERCEPTION_SWEEP_BUTTON_Y,
-                    "interception_sweep_button_" + attempt)) {
+            if (shouldSkipDailyFinalAction("interception", "sweep_" + attempt)) {
                 skippedSweepByGuard = true;
                 logger.log("interception sweep attempt skipped by daily guard attempt=" + attempt);
                 continue;
             }
+            tap(input, ProbeConfig.INTERCEPTION_SWEEP_BUTTON_X, ProbeConfig.INTERCEPTION_SWEEP_BUTTON_Y,
+                    "interception_sweep_button_" + attempt);
             Thread.sleep(1800);
             capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
             copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
@@ -3263,6 +3496,8 @@ public final class MaaNikkeTaskRunner {
                 Thread.sleep(1800);
                 capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
                 copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+                markDailyFinalActionDone("interception", "sweep_" + attempt,
+                        "interception_sweep_button_" + attempt);
             } else {
                 logger.log("interception reward confirm not visible after sweep confirm attempt=" + attempt);
             }
@@ -3314,7 +3549,7 @@ public final class MaaNikkeTaskRunner {
 
     private void runClaimClimbTowerTask(FrameCaptureBackend capture, InputInjector input, boolean dryRun)
             throws Exception {
-        boolean unlimitedEnabled = taskOptionYes(0, false);
+        boolean unlimitedEnabled = false;
         int unlimitedTimes = taskOptionInt(1, 1, 1, 10);
         boolean companyEnabled = taskOptionYes(2, true);
         boolean companyFull = taskOptionYes(3, false);
@@ -3403,12 +3638,22 @@ public final class MaaNikkeTaskRunner {
                         break;
                     }
                 }
+                if (finalState != null
+                        && (finalState.indexOf("unlimited_detail_rejected") >= 0
+                        || finalState.indexOf("left_tower_page_before_fight_gate") >= 0
+                        || finalState.indexOf("fight_gate_not_confirmed") >= 0)) {
+                    logger.log("claim_climb_tower stop company loop after guarded failure finalState=" + finalState);
+                    break;
+                }
             }
         }
 
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_ACTION_FILE);
         copyFile(ProbeConfig.TASK_AFTER_ACTION_FILE, ProbeConfig.TASK_FRAME_FILE);
-        if (!battleFailedRetry) {
+        if (!battleFailedRetry && (finalState == null
+                || finalState.length() == 0
+                || finalState.startsWith("workflow_running")
+                || "unknown".equals(finalState))) {
             finalState = attempted > 0
                     ? (dryRun ? "climb_tower_battle_previewed" : "climb_tower_attempted")
                     : "climb_tower_no_enabled_target";
@@ -3457,23 +3702,70 @@ public final class MaaNikkeTaskRunner {
 
     private boolean runOneClimbTowerEntry(FrameCaptureBackend capture, InputInjector input, int x, int y,
                                           String label, boolean dryRun) throws Exception {
+        capture.copyLatestFrameTo(ProbeConfig.TASK_BEFORE_CLIMB_TOWER_TARGET_FILE);
+        logger.log("climb tower target before tap label=" + label
+                + " frame=" + ProbeConfig.TASK_BEFORE_CLIMB_TOWER_TARGET_FILE.getAbsolutePath()
+                + " x=" + x + " y=" + y);
         tap(input, x, y, label + "_entry");
-        Thread.sleep(2300);
-        capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
-        copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
-        if (dryRun) {
-            logger.log("debug dry-run stopped after opening tower target label=" + label);
-            return true;
-        }
-        if (!tapDailyFinalActionIfNeeded(input, "climb_tower", label + "_enter_fight",
-                ProbeConfig.CLIMB_TOWER_ENTER_FIGHT_X, ProbeConfig.CLIMB_TOWER_ENTER_FIGHT_Y,
-                label + "_enter_fight_candidate")) {
+        Thread.sleep(4200);
+        waitForStableScene(capture, ProbeConfig.STABLE_SCENE_WAIT_SECONDS,
+                label + "_after_entry");
+            capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
+            copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+            if (isClimbTowerUnlimitedDetailVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)) {
+                logger.log("climb tower detected unlimited tower detail after entry label=" + label
+                        + ", return to choice and skip this target");
+                tap(input, ProbeConfig.CLIMB_TOWER_CHOICE_BACK_X, ProbeConfig.CLIMB_TOWER_CHOICE_BACK_Y,
+                        label + "_unlimited_detail_back");
+                Thread.sleep(1600);
+                finalState = label + "_unlimited_detail_rejected";
+                actionSuccess = false;
+                return false;
+            }
+            if (isHomeClearVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)
+                    || isArkHubVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)
+                    || isHomeNoticeListVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)
+                    || isHomePopupVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)) {
+                if (!isClimbTowerCompanyDetailVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)
+                        && !isClimbTowerFightPrepareVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)) {
+                    finalState = label + "_left_tower_page_before_fight_gate";
+                    actionSuccess = false;
+                    logger.log("climb tower stopped because page left tower flow before fight gate label=" + label);
+                    return false;
+                }
+            }
+            boolean fightOcrHit = probeMaaCoreOcrForLog(ProbeConfig.TASK_AFTER_WAIT_FILE,
+                    "climbtower.confirm_climbtower_intofight_" + label, new int[]{661, 632, 193, 74},
+                    new String[]{"进入战斗"});
+            boolean companyDetailVisible = isClimbTowerCompanyDetailVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)
+                    || isClimbTowerFightPrepareVisible(ProbeConfig.TASK_AFTER_WAIT_FILE);
+            if (!fightOcrHit && !companyDetailVisible) {
+                tap(input, ProbeConfig.CLIMB_TOWER_CHOICE_BACK_X, ProbeConfig.CLIMB_TOWER_CHOICE_BACK_Y,
+                        label + "_fight_gate_missing_back");
+                Thread.sleep(1600);
+                finalState = label + "_fight_gate_not_confirmed";
+                actionSuccess = false;
+                logger.log("climb tower stopped before enter fight because company detail/fight button not confirmed"
+                        + " label=" + label
+                        + " fightOcrHit=" + fightOcrHit
+                        + " companyDetailVisible=" + companyDetailVisible);
+                return false;
+            }
+            if (dryRun) {
+                logger.log("debug dry-run stopped after opening tower target label=" + label);
+                return true;
+            }
+        if (shouldSkipDailyFinalAction("climb_tower", label + "_enter_fight")) {
             finalState = label + "_already_done_today";
             actionSuccess = true;
             logger.log("climb tower enter fight skipped by daily guard label=" + label);
             return true;
         }
+        tap(input, ProbeConfig.CLIMB_TOWER_ENTER_FIGHT_X, ProbeConfig.CLIMB_TOWER_ENTER_FIGHT_Y,
+                label + "_enter_fight_candidate");
         if (waitAndHandleClimbTowerBattle(capture, input, label)) {
+            markDailyFinalActionDone("climb_tower", label + "_enter_fight",
+                    label + "_enter_fight_candidate");
             return true;
         }
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
@@ -3492,7 +3784,19 @@ public final class MaaNikkeTaskRunner {
         for (int attempt = 1; attempt <= 4; attempt++) {
             capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
             copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
-            if (isClimbTowerChoiceVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)) {
+            if (isClimbTowerUnlimitedDetailVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)) {
+                tap(input, ProbeConfig.CLIMB_TOWER_CHOICE_BACK_X, ProbeConfig.CLIMB_TOWER_CHOICE_BACK_Y,
+                        "climb_tower_unlimited_detail_back_" + target + "_" + attempt);
+                Thread.sleep(1600);
+                capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
+                copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
+                if (isClimbTowerChoiceReadyForTarget(ProbeConfig.TASK_AFTER_WAIT_FILE, target)) {
+                    logger.log("climb tower returned from unlimited detail to choice target="
+                            + target + " attempt=" + attempt);
+                    return CLIMB_TOWER_PREPARE_READY;
+                }
+            }
+            if (isClimbTowerChoiceReadyForTarget(ProbeConfig.TASK_AFTER_WAIT_FILE, target)) {
                 logger.log("climb tower choice page ready target=" + target + " attempt=" + attempt);
                 return CLIMB_TOWER_PREPARE_READY;
             }
@@ -3509,7 +3813,7 @@ public final class MaaNikkeTaskRunner {
                     Thread.sleep(1600);
                     capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
                     copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
-                    if (isClimbTowerChoiceVisible(ProbeConfig.TASK_AFTER_WAIT_FILE)) {
+                    if (isClimbTowerChoiceReadyForTarget(ProbeConfig.TASK_AFTER_WAIT_FILE, target)) {
                         logger.log("climb tower returned to choice by bottom-left back target="
                                 + target + " attempt=" + attempt);
                         return CLIMB_TOWER_PREPARE_READY;
@@ -3528,7 +3832,7 @@ public final class MaaNikkeTaskRunner {
         }
         capture.copyLatestFrameTo(ProbeConfig.TASK_AFTER_WAIT_FILE);
         copyFile(ProbeConfig.TASK_AFTER_WAIT_FILE, ProbeConfig.TASK_FRAME_FILE);
-        boolean ready = isClimbTowerChoiceVisible(ProbeConfig.TASK_AFTER_WAIT_FILE);
+        boolean ready = isClimbTowerChoiceReadyForTarget(ProbeConfig.TASK_AFTER_WAIT_FILE, target);
         logger.log("climb tower choice final target=" + target + " ready=" + ready);
         return ready ? CLIMB_TOWER_PREPARE_READY : CLIMB_TOWER_PREPARE_NOT_READY;
     }
@@ -4879,13 +5183,120 @@ public final class MaaNikkeTaskRunner {
             int bottomBackHits = countBlueButtonSamples(bitmap, 0, 650, 130, 715);
             int leftRewardHits = countBrightPanelSamples(bitmap, 5, 65, 195, 130);
             int centerStageHits = countBrightPanelSamples(bitmap, 500, 240, 740, 380);
-            boolean visible = rankingButtonHits >= 18 && bottomBackHits >= 18
+            int bottomTitleHits = countStrictWhiteSamples(bitmap, 560, 585, 745, 645);
+            int remainingTextHits = countStrictWhiteSamples(bitmap, 565, 545, 715, 590);
+            int companyIconHits = countBrightPanelSamples(bitmap, 610, 500, 670, 565);
+            boolean classicVisible = rankingButtonHits >= 18 && bottomBackHits >= 18
                     && leftRewardHits >= 10 && centerStageHits >= 45;
+            boolean companyVisible = rankingButtonHits >= 18 && bottomBackHits >= 18
+                    && centerStageHits >= 45
+                    && bottomTitleHits >= 14
+                    && (remainingTextHits >= 8 || companyIconHits >= 8);
+            boolean visible = classicVisible || companyVisible;
             logger.log("climb tower detail detect file=" + frameFile.getName()
                     + " rankingButtonHits=" + rankingButtonHits
                     + " bottomBackHits=" + bottomBackHits
                     + " leftRewardHits=" + leftRewardHits
                     + " centerStageHits=" + centerStageHits
+                    + " bottomTitleHits=" + bottomTitleHits
+                    + " remainingTextHits=" + remainingTextHits
+                    + " companyIconHits=" + companyIconHits
+                    + " classicVisible=" + classicVisible
+                    + " companyVisible=" + companyVisible
+                    + " visible=" + visible);
+            return visible;
+        } finally {
+            bitmap.recycle();
+        }
+    }
+
+    private boolean isClimbTowerUnlimitedDetailVisible(File frameFile) {
+        String report = runMaaCoreOcrProbeIfReady(frameFile, "climbtower.unlimited_detail_gate",
+                new int[]{693, 217, 152, 146},
+                new String[]{"无限之塔", "无限"});
+        boolean ocrHit = isMaaCoreOcrHit(report);
+        boolean bottomOcrHit = probeMaaCoreOcrForLog(frameFile,
+                "climbtower.unlimited_detail_bottom_gate", new int[]{535, 585, 230, 70},
+                new String[]{"无限之塔", "无限"});
+        Bitmap bitmap = BitmapFactory.decodeFile(frameFile.getAbsolutePath());
+        if (bitmap == null) {
+            logger.log("climb tower unlimited detail detect skipped, cannot decode "
+                    + frameFile.getAbsolutePath() + " ocrHit=" + ocrHit
+                    + " bottomOcrHit=" + bottomOcrHit);
+            return ocrHit || bottomOcrHit;
+        }
+        try {
+            int topTitleHits = countBrightPanelSamples(bitmap, 690, 215, 850, 365);
+            int bottomTitleHits = countStrictWhiteSamples(bitmap, 560, 585, 735, 640);
+            int bottomTitleLooseHits = countBrightPanelSamples(bitmap, 545, 585, 750, 645, 6, 160);
+            int bottomTitleUnderlineHits = countBlueButtonSamples(bitmap, 600, 635, 680, 655);
+            int rankingButtonHits = countBlueButtonSamples(bitmap, 1160, 650, 1270, 715);
+            int bottomBackHits = countBlueButtonSamples(bitmap, 0, 650, 130, 715);
+            int leftRewardHits = countBrightPanelSamples(bitmap, 5, 65, 195, 130);
+            int centerTowerHits = countBrightPanelSamples(bitmap, 500, 210, 760, 390);
+            int companyRowHits = countBrightPanelSamples(bitmap, 420, 390, 860, 640);
+            int companyLowerHits = countBrightPanelSamples(bitmap, 430, 515, 850, 650);
+            boolean choiceLike = companyRowHits >= 58 && companyLowerHits >= 18;
+            boolean visualUnlimited = (bottomTitleHits >= 12 || bottomTitleLooseHits >= 35)
+                    && bottomTitleUnderlineHits >= 1
+                    && leftRewardHits >= 20
+                    && centerTowerHits >= 45;
+            boolean visible = !choiceLike
+                    && (ocrHit || bottomOcrHit || visualUnlimited)
+                    && (rankingButtonHits >= 12 || bottomBackHits >= 12 || visualUnlimited);
+            logger.log("climb tower unlimited detail detect file=" + frameFile.getName()
+                    + " ocrHit=" + ocrHit
+                    + " bottomOcrHit=" + bottomOcrHit
+                    + " topTitleHits=" + topTitleHits
+                    + " bottomTitleHits=" + bottomTitleHits
+                    + " bottomTitleLooseHits=" + bottomTitleLooseHits
+                    + " bottomTitleUnderlineHits=" + bottomTitleUnderlineHits
+                    + " rankingButtonHits=" + rankingButtonHits
+                    + " bottomBackHits=" + bottomBackHits
+                    + " leftRewardHits=" + leftRewardHits
+                    + " centerTowerHits=" + centerTowerHits
+                    + " companyRowHits=" + companyRowHits
+                    + " companyLowerHits=" + companyLowerHits
+                    + " choiceLike=" + choiceLike
+                    + " visualUnlimited=" + visualUnlimited
+                    + " visible=" + visible);
+            return visible;
+        } finally {
+            bitmap.recycle();
+        }
+    }
+
+    private boolean isClimbTowerCompanyDetailVisible(File frameFile) {
+        boolean detailVisible = isClimbTowerDetailVisible(frameFile) || isClimbTowerPageVisible(frameFile);
+        boolean unlimitedVisible = isClimbTowerUnlimitedDetailVisible(frameFile);
+        boolean visible = detailVisible && !unlimitedVisible;
+        logger.log("climb tower company detail gate file=" + frameFile.getName()
+                + " detailVisible=" + detailVisible
+                + " unlimitedVisible=" + unlimitedVisible
+                + " visible=" + visible);
+        return visible;
+    }
+
+    private boolean isClimbTowerFightPrepareVisible(File frameFile) {
+        Bitmap bitmap = BitmapFactory.decodeFile(frameFile.getAbsolutePath());
+        if (bitmap == null) {
+            logger.log("climb tower fight prepare detect skipped, cannot decode "
+                    + frameFile.getAbsolutePath());
+            return false;
+        }
+        try {
+            int whitePanelHits = countStrictWhiteSamples(bitmap, 420, 360, 850, 710);
+            int enterButtonHits = countBlueButtonSamples(bitmap, 650, 635, 850, 705);
+            int squadCardHits = countBrightPanelSamples(bitmap, 450, 500, 840, 590);
+            int rewardHits = countBrightPanelSamples(bitmap, 450, 635, 640, 700);
+            boolean visible = whitePanelHits >= 120
+                    && enterButtonHits >= 18
+                    && (squadCardHits >= 35 || rewardHits >= 20);
+            logger.log("climb tower fight prepare detect file=" + frameFile.getName()
+                    + " whitePanelHits=" + whitePanelHits
+                    + " enterButtonHits=" + enterButtonHits
+                    + " squadCardHits=" + squadCardHits
+                    + " rewardHits=" + rewardHits
                     + " visible=" + visible);
             return visible;
         } finally {
@@ -4906,14 +5317,73 @@ public final class MaaNikkeTaskRunner {
             int towerCardHits = countBrightPanelSamples(bitmap, 455, 310, 825, 450);
             int listTextHits = countBrightPanelSamples(bitmap, 455, 340, 826, 438);
             boolean detailLike = rankingButtonHits >= 18 && bottomBackHits >= 18;
-            boolean visible = !detailLike
-                    && (companyCardHits >= 45 || (towerCardHits >= 36 && listTextHits >= 20));
+            boolean strongChoice = companyCardHits >= 65 && towerCardHits >= 70 && listTextHits >= 55;
+            boolean visible = strongChoice
+                    || (!detailLike && (companyCardHits >= 45 || (towerCardHits >= 36 && listTextHits >= 20)));
             logger.log("climb tower choice detect file=" + frameFile.getName()
                     + " rankingButtonHits=" + rankingButtonHits
                     + " bottomBackHits=" + bottomBackHits
                     + " companyCardHits=" + companyCardHits
                     + " towerCardHits=" + towerCardHits
                     + " listTextHits=" + listTextHits
+                    + " detailLike=" + detailLike
+                    + " strongChoice=" + strongChoice
+                    + " visible=" + visible);
+            return visible;
+        } finally {
+            bitmap.recycle();
+        }
+    }
+
+    private boolean isClimbTowerChoiceReadyForTarget(File frameFile, String target) {
+        boolean choiceVisible = isClimbTowerChoiceVisible(frameFile);
+        if (target == null || target.indexOf("company") < 0) {
+            return choiceVisible;
+        }
+        boolean companyChoiceVisible = isClimbTowerCompanyChoiceVisible(frameFile);
+        boolean ready = choiceVisible && companyChoiceVisible;
+        logger.log("climb tower choice target gate target=" + target
+                + " choiceVisible=" + choiceVisible
+                + " companyChoiceVisible=" + companyChoiceVisible
+                + " ready=" + ready);
+        return ready;
+    }
+
+    private boolean isClimbTowerCompanyChoiceVisible(File frameFile) {
+        Bitmap bitmap = BitmapFactory.decodeFile(frameFile.getAbsolutePath());
+        if (bitmap == null) {
+            logger.log("climb tower company choice detect skipped, cannot decode "
+                    + frameFile.getAbsolutePath());
+            return false;
+        }
+        try {
+            int topTowerCardHits = countBrightPanelSamples(bitmap, 445, 185, 850, 365);
+            int topInfoPanelHits = countStrictWhiteSamples(bitmap, 690, 220, 825, 360);
+            int companyRowHits = countBrightPanelSamples(bitmap, 420, 390, 860, 640);
+            int companyLowerHits = countBrightPanelSamples(bitmap, 430, 515, 850, 650);
+            int selectedTabHits = countBlueButtonSamples(bitmap, 520, 365, 760, 390);
+            int bottomBackHits = countBlueButtonSamples(bitmap, 0, 650, 130, 715);
+            int rankingButtonHits = countBlueButtonSamples(bitmap, 1160, 650, 1270, 715);
+            int detailCenterHits = countBrightPanelSamples(bitmap, 500, 240, 740, 380);
+            boolean detailLike = rankingButtonHits >= 18 && bottomBackHits >= 18
+                    && detailCenterHits >= 45
+                    && (companyRowHits < 78 || companyLowerHits < 26);
+            boolean visible = !detailLike
+                    && topTowerCardHits >= 55
+                    && (topInfoPanelHits >= 12 || topTowerCardHits >= 120)
+                    && companyRowHits >= 78
+                    && companyLowerHits >= 26
+                    && (selectedTabHits >= 1 || bottomBackHits >= 8 || rankingButtonHits >= 8
+                    || companyRowHits >= 180);
+            logger.log("climb tower company choice detect file=" + frameFile.getName()
+                    + " topTowerCardHits=" + topTowerCardHits
+                    + " topInfoPanelHits=" + topInfoPanelHits
+                    + " companyRowHits=" + companyRowHits
+                    + " companyLowerHits=" + companyLowerHits
+                    + " selectedTabHits=" + selectedTabHits
+                    + " bottomBackHits=" + bottomBackHits
+                    + " rankingButtonHits=" + rankingButtonHits
+                    + " detailCenterHits=" + detailCenterHits
                     + " detailLike=" + detailLike
                     + " visible=" + visible);
             return visible;
@@ -4964,6 +5434,14 @@ public final class MaaNikkeTaskRunner {
             return false;
         }
         try {
+            int progressBarHits = countStrictWhiteSamples(bitmap, 55, 662, 760, 674);
+            int loadingTextHits = countBrightPanelSamples(bitmap, 600, 330, 680, 395, 4, 120);
+            if (progressBarHits >= 80 && loadingTextHits >= 6) {
+                logger.log("interception page detect file=" + frameFile.getName()
+                        + " blockedByLoading=true progressBarHits=" + progressBarHits
+                        + " loadingTextHits=" + loadingTextHits);
+                return false;
+            }
             int bottomBackHits = countBlueButtonSamples(bitmap, 0, 650, 130, 715);
             int orangeFrameHits = countOrangePanelSamples(bitmap, 430, 70, 850, 450);
             int centerPanelHits = countBrightPanelSamples(bitmap, 430, 300, 850, 620);
@@ -4984,6 +5462,8 @@ public final class MaaNikkeTaskRunner {
                     + " centerPanelHits=" + centerPanelHits
                     + " lowerDarkHits=" + lowerDarkHits
                     + " battleButtonHits=" + battleButtonHits
+                    + " progressBarHits=" + progressBarHits
+                    + " loadingTextHits=" + loadingTextHits
                     + " classicVisible=" + classicVisible
                     + " strongBattleVisible=" + strongBattleVisible
                     + " visible=" + visible);
@@ -5126,6 +5606,29 @@ public final class MaaNikkeTaskRunner {
                     + countBlueButtonSamples(bitmap, 650, 535, 830, 610);
             boolean visible = darkHits >= 80 && panelHits >= 45 && confirmHits >= 14;
             logger.log("interception sweep confirm detect file=" + frameFile.getName()
+                    + " darkHits=" + darkHits
+                    + " panelHits=" + panelHits
+                    + " confirmHits=" + confirmHits
+                    + " visible=" + visible);
+            return visible;
+        } finally {
+            bitmap.recycle();
+        }
+    }
+
+    private boolean isGenericConfirmDialogVisible(File frameFile) {
+        Bitmap bitmap = BitmapFactory.decodeFile(frameFile.getAbsolutePath());
+        if (bitmap == null) {
+            logger.log("generic confirm dialog detect skipped, cannot decode " + frameFile.getAbsolutePath());
+            return false;
+        }
+        try {
+            int darkHits = countHomePopupOutsideDarkSamples(bitmap);
+            int panelHits = countBrightPanelSamples(bitmap, 420, 250, 860, 545);
+            int confirmHits = countBlueButtonSamples(bitmap, 560, 410, 835, 505)
+                    + countOrangePanelSamples(bitmap, 560, 410, 835, 505);
+            boolean visible = darkHits >= 50 && panelHits >= 45 && confirmHits >= 14;
+            logger.log("generic confirm dialog detect file=" + frameFile.getName()
                     + " darkHits=" + darkHits
                     + " panelHits=" + panelHits
                     + " confirmHits=" + confirmHits
@@ -5456,6 +5959,31 @@ public final class MaaNikkeTaskRunner {
 
     private boolean isInquiryPageVisible(File frameFile) {
         return isInquiryDetailPageVisible(frameFile) || isInquiryListPageVisible(frameFile);
+    }
+
+    private boolean isInquirySendGiftReadyVisible(File frameFile) {
+        Bitmap bitmap = BitmapFactory.decodeFile(frameFile.getAbsolutePath());
+        if (bitmap == null) {
+            logger.log("inquiry send gift ready detect skipped, cannot decode " + frameFile.getAbsolutePath());
+            return false;
+        }
+        try {
+            int selectedGiftHits = countOrangePanelSamples(bitmap, 455, 315, 555, 430)
+                    + countBlueButtonSamples(bitmap, 455, 315, 555, 430)
+                    + countBrightPanelSamples(bitmap, 455, 315, 555, 430);
+            int sendButtonHits = countOrangePanelSamples(bitmap, 650, 610, 875, 690)
+                    + countBlueButtonSamples(bitmap, 650, 610, 875, 690);
+            int bottomBackHits = countBlueButtonSamples(bitmap, 0, 650, 130, 715);
+            boolean visible = selectedGiftHits >= 35 && sendButtonHits >= 25;
+            logger.log("inquiry send gift ready detect file=" + frameFile.getName()
+                    + " selectedGiftHits=" + selectedGiftHits
+                    + " sendButtonHits=" + sendButtonHits
+                    + " bottomBackHits=" + bottomBackHits
+                    + " visible=" + visible);
+            return visible;
+        } finally {
+            bitmap.recycle();
+        }
     }
 
     private boolean isNikkesListPageVisible(File frameFile) {
@@ -6537,6 +7065,8 @@ public final class MaaNikkeTaskRunner {
         ProbeConfig.TASK_AFTER_MAIL_OPEN_FILE.delete();
         ProbeConfig.TASK_AFTER_MAIL_CLAIM_FILE.delete();
         ProbeConfig.TASK_AFTER_MAIL_CONFIRM_FILE.delete();
+        ProbeConfig.TASK_AFTER_GIFT_CONFIRM_FILE.delete();
+        ProbeConfig.TASK_AFTER_INQUIRY_BATCH_DIALOG_FILE.delete();
         ProbeConfig.MAACORE_PROBE_REPORT_FILE.delete();
         logger.reset();
     }
@@ -6558,6 +7088,8 @@ public final class MaaNikkeTaskRunner {
                     new File(archiveDir, "previous-task-result-" + stamp + ".txt"));
             copyFile(ProbeConfig.TASK_LOG_FILE,
                     new File(archiveDir, "previous-task-runner-" + stamp + ".log"));
+            copyFile(ProbeConfig.TASK_AFTER_INQUIRY_BATCH_DIALOG_FILE,
+                    new File(archiveDir, "previous-task-after-inquiry-batch-dialog-" + stamp + ".png"));
         } catch (Throwable error) {
             logger.log("previous task artifact archive failed: "
                     + error.getClass().getName() + ": " + error.getMessage());
