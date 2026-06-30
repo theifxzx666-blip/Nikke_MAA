@@ -1,0 +1,3 @@
+日期,任务,模式,勾启动游戏,期望停在哪,实际停在哪,有没有点错,截图路径,日志路径,备注
+2026-06-24,claim_free_shop,debug,否,免费刷新确认弹窗,免费刷新确认弹窗,否,outputs/android_probe/.../task_frame.png,outputs/android_probe/.../task_runner.log,这是正常样例
+2026-06-24,claim_interception,normal,否,快速战斗确认页,拦截战主页,否,outputs/android_probe/.../task_frame.png,outputs/android_probe/.../task_runner.log,疑似没识别到快速战斗按钮

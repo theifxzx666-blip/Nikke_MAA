@@ -207,7 +207,7 @@ final class FrameCaptureBackend implements ImageReader.OnImageAvailableListener 
         }
         try {
             if (shouldUpdatePreview) {
-                ByteArrayOutputStream output = new ByteArrayOutputStream(160 * 1024);
+                ByteArrayOutputStream output = new ByteArrayOutputStream(32 * 1024);
                 Bitmap preview = cropped;
                 if (cropped.getWidth() != ProbeConfig.PREVIEW_WIDTH
                         || cropped.getHeight() != ProbeConfig.PREVIEW_HEIGHT) {
@@ -215,7 +215,7 @@ final class FrameCaptureBackend implements ImageReader.OnImageAvailableListener 
                             cropped,
                             ProbeConfig.PREVIEW_WIDTH,
                             ProbeConfig.PREVIEW_HEIGHT,
-                            true
+                            false
                     );
                 }
                 try {
@@ -225,8 +225,10 @@ final class FrameCaptureBackend implements ImageReader.OnImageAvailableListener 
                         preview.recycle();
                     }
                 }
+                byte[] previewBytes = output.toByteArray();
+                writeBytes(ProbeConfig.PREVIEW_JPEG_FILE, previewBytes);
                 synchronized (latestJpegLock) {
-                    latestJpeg = output.toByteArray();
+                    latestJpeg = previewBytes;
                     latestJpegTimeMs = now;
                     latestJpegSequence++;
                 }
@@ -246,6 +248,17 @@ final class FrameCaptureBackend implements ImageReader.OnImageAvailableListener 
             FileOutputStream output = new FileOutputStream(target);
             try {
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, output);
+            } finally {
+                output.close();
+            }
+        }
+    }
+
+    private void writeBytes(File target, byte[] bytes) throws Exception {
+        synchronized (frameFileLock) {
+            FileOutputStream output = new FileOutputStream(target);
+            try {
+                output.write(bytes);
             } finally {
                 output.close();
             }

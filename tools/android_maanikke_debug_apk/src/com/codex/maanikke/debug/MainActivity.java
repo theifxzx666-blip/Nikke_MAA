@@ -7,9 +7,11 @@ import android.app.AlertDialog;
 import android.app.KeyguardManager;
 import android.app.PendingIntent;
 import android.content.ClipData;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -26,6 +28,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
 import android.provider.Settings;
@@ -35,6 +38,9 @@ import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
+import android.view.Surface;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
@@ -49,6 +55,7 @@ import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -77,10 +84,18 @@ import javax.crypto.spec.SecretKeySpec;
 import rikka.shizuku.Shizuku;
 
 public final class MainActivity extends Activity {
+    static {
+        try {
+            System.loadLibrary("maanikke_preview_renderer");
+        } catch (Throwable ignored) {
+        }
+    }
+
     private static final String ASSET_JAR = "maanikke-root-ir-probe.jar";
     private static final String ASSET_MAACORE_BRIDGE = "libmaanikke_maacore_bridge.so";
     private static final String REMOTE_JAR = "/data/local/tmp/maanikke-root-ir-probe.jar";
     private static final String REMOTE_MAACORE_BRIDGE = "/data/local/tmp/libmaanikke_maacore_bridge.so";
+    private static final String REMOTE_MAACORE_LIB_DIR = "/data/local/tmp/maacore";
     private static final String REMOTE_RUNNER = "/data/local/tmp/maanikke_run_probe_env.sh";
     private static final String REMOTE_RESULT = "/data/local/tmp/maanikke_root_ir_result.txt";
     private static final String REMOTE_LOG = "/data/local/tmp/maanikke_root_ir_probe.log";
@@ -107,6 +122,10 @@ public final class MainActivity extends Activity {
     private static final String REMOTE_TASK_OPTIONS = "/data/local/tmp/maanikke_task_options.properties";
     private static final String REMOTE_TARGET_PACKAGE = "/data/local/tmp/maanikke_target_package.txt";
     private static final String REMOTE_TARGET_COMPONENT = "/data/local/tmp/maanikke_target_component.txt";
+    private static final String REMOTE_PREVIEW_JPEG = "/data/local/tmp/maanikke_preview_frame.jpg";
+    private static final String REMOTE_PREVIEW_APP_STATUS = "/data/local/tmp/maanikke_preview_app_status.txt";
+    private static final String REMOTE_APP_RUN_STATUS = "/data/local/tmp/maanikke_app_run_status.txt";
+    private static final String REMOTE_APP_RUN_EVENTS = "/data/local/tmp/maanikke_app_run_events.txt";
     private static final String PREVIEW_SOCKET_NAME = "maanikke_preview_frame";
     private static final String PREFS_NAME = "maanikke_debug_prefs";
     private static final String PREF_BACKGROUND_MODE = "background_mode";
@@ -146,6 +165,7 @@ public final class MainActivity extends Activity {
     private static final String PUBLIC_SCREENSHOT_DIR = "screenshots";
     private static final String PUBLIC_APK_DIR = "apk";
     private static final String PUBLIC_RESOURCE_DIR = "resource";
+    private static final String PUBLIC_LIB_DIR = "lib";
     private static final String PUBLIC_RESOURCE_BASE_DIR = "base";
     private static final String PUBLIC_RESOURCE_EVIDENCE_DIR = "evidence";
     private static final String PUBLIC_RESOURCE_STAMP_FILE = "resource-version.txt";
@@ -155,6 +175,18 @@ public final class MainActivity extends Activity {
     private static final String ASSET_MAA_RESOURCE_INTERFACE = "MaaSync/MaaResource/interface.json";
     private static final String ASSET_MAA_RESOURCE_MANIFEST = "MaaSync/asset_manifest.json";
     private static final String ASSET_OCR_EVIDENCE_ROOT = "MaaSync/OcrEvidence";
+    private static final String ASSET_MAA_LIB_ROOT = "MaaSync/MaaLib/arm64-v8a";
+    private static final String[] REQUIRED_MAA_LIBS = new String[]{
+            "libc++_shared.so",
+            "libonnxruntime.so",
+            "libopencv_world4.so",
+            "libfastdeploy_ppocr.so",
+            "libMaaUtils.so",
+            "libMaaFramework.so",
+            "libMaaAndroidNativeControlUnit.so",
+            "libMaaCustomControlUnit.so",
+            "libmaanikke_maacore_bridge.so"
+    };
     private static final String TEXT_WAITING_PREVIEW = "\u7b49\u5f85\u5b9e\u65f6\u753b\u9762";
     private static final String TEXT_STARTING_GAME = "\u6b63\u5728\u542f\u52a8\u6e38\u620f";
     private static final String TEXT_STOPPING_GAME = "\u6b63\u5728\u7ed3\u675f\u6e38\u620f";
@@ -230,7 +262,18 @@ public final class MainActivity extends Activity {
     private TextView overlayPermissionText;
     private TextView notificationPermissionText;
     private TextView batteryPermissionText;
-    private ImageView previewImage;
+    private SurfaceView previewSurfaceView;
+    private ImageView previewFallbackImage;
+    private Surface previewRenderSurface;
+    private volatile boolean previewNativeRendererReady = false;
+    private volatile boolean previewUserServiceReady = false;
+    private volatile boolean previewUserServiceRequested = false;
+    private volatile boolean previewUserServiceSurfaceReady = false;
+    private volatile boolean previewUseLocalNativeFallback = false;
+    private IPreviewRenderService previewRenderService;
+    private Shizuku.UserServiceArgs previewUserServiceArgs;
+    private ServiceConnection previewUserServiceConnection;
+    private int previewUserServiceFailureCount = 0;
     private int previewLoadingTick = 0;
     private String previewLoadingBaseText = "";
     private CheckBox backgroundModeCheckBox;
@@ -288,7 +331,8 @@ public final class MainActivity extends Activity {
     private volatile boolean previewTaskMode = false;
     private volatile int previewLoopGeneration = 0;
     private volatile boolean previewHasFrame = false;
-    private byte[] pendingPreviewBytes = null;
+    private Bitmap pendingPreviewBitmap = null;
+    private Bitmap renderedPreviewBitmap = null;
     private String pendingPreviewInfo = "";
     private String lastPreviewStamp = "";
     private int lastSocketPreviewSeq = -1;
@@ -296,9 +340,14 @@ public final class MainActivity extends Activity {
     private long lastTaskPreviewFallbackMs = 0;
     private long lastPhasePollMs = 0;
     private long lastPreviewAttachCheckMs = 0;
+    private long lastPreviewAppStatusWriteMs = 0;
+    private long previewLoopStartedAtMs = 0;
+    private long lastUserServiceFrameModifiedMs = 0;
+    private long lastUserServiceFrameLength = 0;
     private String lastTaskResultLogKey = "";
     private String lastProbeResultLogKey = "";
     private String lastBattleFailedNotifyKey = "";
+    private String lastPreviewAppStatusValue = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -335,46 +384,57 @@ public final class MainActivity extends Activity {
         if (intent == null) {
             return;
         }
-        if ("com.codex.maanikke.debug.RUN_PROBE".equals(intent.getAction())) {
+        if (intent.hasExtra(PREF_DEBUG_MODE)) {
+            setDebugMode(intent.getBooleanExtra(PREF_DEBUG_MODE, debugMode));
+        }
+        if (intent.hasExtra(PREF_BACKEND_MODE)) {
+            setBackendMode(intent.getStringExtra(PREF_BACKEND_MODE));
+        }
+        if (intent.hasExtra(PREF_BACKGROUND_MODE)) {
+            setBackgroundMode(intent.getBooleanExtra(PREF_BACKGROUND_MODE, backgroundMode));
+        }
+        String action = intent.getAction();
+        writeAppRunStatus("intent " + (action == null ? "MAIN/null" : action));
+        if ("com.codex.maanikke.debug.RUN_PROBE".equals(action)) {
             runRootProbe();
-        } else if ("com.codex.maanikke.debug.RUN_TASK".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_TASK".equals(action)) {
             String taskId = intent.getStringExtra("task_id");
             if (taskId != null && isSafeTaskArg(taskId)) {
                 runBackendTask(taskId);
             } else {
                 append("RUN_TASK missing safe task_id extra.");
             }
-        } else if ("com.codex.maanikke.debug.RUN_START_GAME".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_START_GAME".equals(action)) {
             runBackendTask("start_game");
-        } else if ("com.codex.maanikke.debug.RUN_STOP_GAME".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_STOP_GAME".equals(action)) {
             runBackendTask("stop_game");
-        } else if ("com.codex.maanikke.debug.RUN_BACK_TO_HOME".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_BACK_TO_HOME".equals(action)) {
             runBackendTask("back_to_home");
-        } else if ("com.codex.maanikke.debug.RUN_HANDLE_UPDATE".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_HANDLE_UPDATE".equals(action)) {
             runBackendTask("handle_update");
-        } else if ("com.codex.maanikke.debug.RUN_MAACORE_PROBE".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_MAACORE_PROBE".equals(action)) {
             runBackendTask("maacore_probe");
-        } else if ("com.codex.maanikke.debug.RUN_CLAIM_MAIL".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_CLAIM_MAIL".equals(action)) {
             runBackendTask("claim_mail");
-        } else if ("com.codex.maanikke.debug.RUN_CLAIM_DAILY_REWARDS".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_CLAIM_DAILY_REWARDS".equals(action)) {
             runBackendTask("claim_daily_rewards");
-        } else if ("com.codex.maanikke.debug.RUN_CLAIM_FRIEND_POINTS".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_CLAIM_FRIEND_POINTS".equals(action)) {
             runBackendTask("claim_friend_points");
-        } else if ("com.codex.maanikke.debug.RUN_CLAIM_OUTPOST_DEFENSE".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_CLAIM_OUTPOST_DEFENSE".equals(action)) {
             runBackendTask("claim_outpost_defense");
-        } else if ("com.codex.maanikke.debug.RUN_CLAIM_PASS_REWARDS".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_CLAIM_PASS_REWARDS".equals(action)) {
             runBackendTask("claim_pass_rewards");
-        } else if ("com.codex.maanikke.debug.RUN_VISIT_MAIL".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_VISIT_MAIL".equals(action)) {
             runBackendTask("visit_mail");
-        } else if ("com.codex.maanikke.debug.RUN_VISIT_DAILY_REWARDS".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_VISIT_DAILY_REWARDS".equals(action)) {
             runBackendTask("visit_daily_rewards");
-        } else if ("com.codex.maanikke.debug.RUN_VISIT_FRIEND_POINTS".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_VISIT_FRIEND_POINTS".equals(action)) {
             runBackendTask("visit_friend_points");
-        } else if ("com.codex.maanikke.debug.RUN_VISIT_FREE_SHOP".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_VISIT_FREE_SHOP".equals(action)) {
             runBackendTask("visit_free_shop");
-        } else if ("com.codex.maanikke.debug.RUN_VISIT_OUTPOST_DEFENSE".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_VISIT_OUTPOST_DEFENSE".equals(action)) {
             runBackendTask("visit_outpost_defense");
-        } else if ("com.codex.maanikke.debug.RUN_WORKFLOW_DAILY_SAFE".equals(intent.getAction())) {
+        } else if ("com.codex.maanikke.debug.RUN_WORKFLOW_DAILY_SAFE".equals(action)) {
             boolean scheduled = intent.getBooleanExtra("scheduled", false);
             if (scheduled) {
                 updateScheduleAlarmFromPrefs();
@@ -401,6 +461,12 @@ public final class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         previewActive = false;
+        unbindPreviewUserService();
+        synchronized (previewFrameLock) {
+            recyclePendingPreviewBitmapLocked();
+            pendingPreviewInfo = "";
+        }
+        recycleRenderedPreviewBitmap();
         executor.shutdownNow();
         controlExecutor.shutdownNow();
         previewExecutor.shutdownNow();
@@ -430,7 +496,7 @@ public final class MainActivity extends Activity {
             previewLoopGeneration++;
             lastSocketPreviewSeq = -1;
             synchronized (previewFrameLock) {
-                pendingPreviewBytes = null;
+                recyclePendingPreviewBitmapLocked();
                 pendingPreviewInfo = "";
             }
         }
@@ -729,10 +795,34 @@ public final class MainActivity extends Activity {
                 1
         ));
 
-        previewImage = new ImageView(this);
-        previewImage.setBackgroundColor(0xff111111);
-        previewImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        previewFrameHost.addView(previewImage, new FrameLayout.LayoutParams(
+        previewSurfaceView = new SurfaceView(this);
+        previewSurfaceView.setBackgroundColor(0xff111111);
+        previewSurfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
+            @Override
+            public void surfaceCreated(SurfaceHolder holder) {
+                setPreviewRenderSurface(holder.getSurface());
+            }
+
+            @Override
+            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+                setPreviewRenderSurface(holder.getSurface());
+            }
+
+            @Override
+            public void surfaceDestroyed(SurfaceHolder holder) {
+                clearPreviewRenderSurface();
+            }
+        });
+        previewFrameHost.addView(previewSurfaceView, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+        ));
+
+        previewFallbackImage = new ImageView(this);
+        previewFallbackImage.setBackgroundColor(0xff111111);
+        previewFallbackImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        previewFallbackImage.setVisibility(View.GONE);
+        previewFrameHost.addView(previewFallbackImage, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
         ));
@@ -2944,6 +3034,10 @@ public final class MainActivity extends Activity {
         workflowButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                writeAppRunStatus("workflow_button_clicked page=" + currentPage
+                        + " running=" + running + " enabled=" + workflowButton.isEnabled());
+                setPhase("已点击开始任务，正在检查配置");
+                showToast("开始任务已触发");
                 runWorkflow();
             }
         });
@@ -3021,7 +3115,7 @@ public final class MainActivity extends Activity {
         setPageVisible(logPage, pageId == PAGE_LOGS);
         setPageVisible(settingsPage, pageId == PAGE_SETTINGS);
         if (actionBar != null) {
-            actionBar.setVisibility(pageId == PAGE_TASKS ? View.VISIBLE : View.GONE);
+            actionBar.setVisibility((pageId == PAGE_HOME || pageId == PAGE_TASKS) ? View.VISIBLE : View.GONE);
         }
         for (int i = 0; i < navItems.size(); i++) {
             TextView item = navItems.get(i);
@@ -3114,22 +3208,36 @@ public final class MainActivity extends Activity {
     }
 
     private boolean ensureBackendReadyForRun() {
-        if (!isShizukuBackend()) {
+        String reason = getBackendNotReadyReason();
+        if (reason.length() == 0) {
             return true;
+        }
+        writeAppRunStatus("backend_not_ready " + reason);
+        return false;
+    }
+
+    private String getBackendNotReadyReason() {
+        if (!isShizukuBackend()) {
+            return "";
         }
         if (!isShizukuBinderAlive()) {
             append("当前为 Shizuku 模式，但服务未连接。请先启动 Shizuku。");
             openShizukuManagement();
             refreshPermissionStatus();
-            return false;
+            return "shizuku_binder_missing";
         }
         if (!hasShizukuPermission()) {
             append("当前为 Shizuku 模式，但本应用尚未授权。");
             requestShizukuPermission();
             refreshPermissionStatus();
-            return false;
+            return "shizuku_permission_missing";
         }
         if (needsBundledResourceSync()) {
+            if (isBundledResourceAlreadyUsable()) {
+                append("APK 资源版本标记待刷新，但已检测到可用 MaaNikke 资源，继续启动任务。");
+                scheduleBundledResourceSyncIfNeeded();
+                return "";
+            }
             if (!hasStoragePermission()) {
                 append("APK 资源需要先解压到 Documents/MaaNikke/resource，请先授予文件访问权限。");
                 openStoragePermission();
@@ -3137,9 +3245,9 @@ public final class MainActivity extends Activity {
                 append("APK 资源正在同步到 Documents/MaaNikke/resource，请稍后重试。");
                 scheduleBundledResourceSyncIfNeeded();
             }
-            return false;
+            return "resource_sync_required";
         }
-        return true;
+        return "";
     }
 
     private void updateBackendModeUi() {
@@ -3953,12 +4061,36 @@ public final class MainActivity extends Activity {
     }
 
     private void runWorkflow(boolean fromSchedule) {
+        writeAppRunStatus("workflow_enter fromSchedule=" + fromSchedule
+                + " running=" + running + " debug=" + debugMode
+                + " backend=" + backendMode + " page=" + currentPage);
+        setPhase("正在检查任务配置");
         boolean forceStart = fromSchedule && getPreferencesStore().getBoolean(PREF_SCHEDULE_FORCE_START, false);
         List<TaskProfile.TaskSelection> selections = collectWorkflowSelections();
         TaskProfile.saveChecks(getPreferencesStore(), selections);
         String[] selectedSteps = TaskProfile.buildBackendSteps(selections, debugMode, forceStart);
+        int checkedCount = 0;
+        int enabledCheckedCount = 0;
+        for (int i = 0; i < selections.size(); i++) {
+            TaskProfile.TaskSelection selection = selections.get(i);
+            if (selection.checked) {
+                checkedCount++;
+                if (selection.enabled) {
+                    enabledCheckedCount++;
+                }
+            }
+        }
+        writeAppRunStatus("workflow_config selections=" + selections.size()
+                + " checked=" + checkedCount
+                + " enabledChecked=" + enabledCheckedCount
+                + " steps=" + selectedSteps.length
+                + " forceStart=" + forceStart);
         if (selectedSteps.length == 0) {
             append("请至少勾选一个任务。");
+            setPhase("未选择任务，请先勾选后台任务");
+            showToast("请至少勾选一个任务");
+            writeAppRunStatus("workflow_blocked empty_selection selections=" + selections.size()
+                    + " checked=" + checkedCount + " enabledChecked=" + enabledCheckedCount);
             return;
         }
         append(debugMode
@@ -3967,6 +4099,8 @@ public final class MainActivity extends Activity {
         if (fromSchedule) {
             append("定时任务触发：按已保存的后台任务顺序执行。");
         }
+        writeAppRunStatus("workflow_start steps=" + selectedSteps.length
+                + " first=" + selectedSteps[0]);
         runBackendTask("workflow_daily_safe", selectedSteps);
     }
 
@@ -4001,9 +4135,15 @@ public final class MainActivity extends Activity {
     private void runBackendTask(final String taskName, final String[] taskArgs) {
         if (running) {
             append("已有任务正在运行。");
+            writeAppRunStatus("blocked running task=" + taskName);
             return;
         }
-        if (!ensureBackendReadyForRun()) {
+        String notReadyReason = getBackendNotReadyReason();
+        if (notReadyReason.length() > 0) {
+            append("任务未启动：后端未就绪（" + notReadyReason + "）。");
+            setPhase("任务未启动：" + notReadyReason);
+            showToast("任务未启动，请查看日志");
+            writeAppRunStatus("blocked backend_not_ready task=" + taskName + " reason=" + notReadyReason);
             return;
         }
         final String taskLabel = buildTaskLabel(taskName, taskArgs);
@@ -4019,11 +4159,13 @@ public final class MainActivity extends Activity {
             startKeepAliveService("任务运行中");
         }
         append("开始执行任务：" + describeTaskLabel(taskName, taskArgs));
+        writeAppRunStatus("executor_submitted task=" + taskLabel);
         executor.execute(new Runnable() {
             @Override
             public void run() {
                 boolean failed = false;
                 try {
+                    writeAppRunStatus("executor_started task=" + taskLabel);
                     cleanupStaleBackendProcesses();
                     writeTaskOptionsFile();
                     prepareBackendJarAndRunner("com.codex.maanikke.rootprobe.MaaNikkeTaskRunner " + taskLabel);
@@ -4037,20 +4179,23 @@ public final class MainActivity extends Activity {
                             + REMOTE_TASK_AFTER_ENTER + " " + REMOTE_TASK_AFTER_DOWNLOAD_CONFIRM + " "
                             + REMOTE_TASK_AFTER_HOME_POPUP + " " + REMOTE_TASK_AFTER_UPDATE + " "
                             + REMOTE_TASK_AFTER_MAIL_OPEN + " " + REMOTE_TASK_AFTER_MAIL_CLAIM + " "
-                            + REMOTE_TASK_AFTER_MAIL_CONFIRM + " " + REMOTE_BACKEND_STDOUT);
+                            + REMOTE_TASK_AFTER_MAIL_CONFIRM + " " + REMOTE_PREVIEW_JPEG + " " + REMOTE_BACKEND_STDOUT);
                     Process backend = startBackendShell(REMOTE_RUNNER);
+                    writeAppRunStatus("backend_started task=" + taskLabel);
                     Thread.sleep(3500);
                     if (!backgroundMode) {
                         bringDebugUiToFront();
                     }
                     waitForTaskFinished(backend, taskName);
                     append("任务逻辑已完成，实时画面将保持连接：" + describeTaskLabel(taskName, taskArgs));
-                    readRemoteResultSummary(true);
-                    exportTaskEvidenceInternal(taskName);
                     if ("stop_game".equals(taskName)) {
-                        waitForProcess(backend, "backend stop task");
                         cleanupAfterGameStopped();
+                        waitForProcessQuietly(backend, "backend stop task", 2000);
+                        readRemoteResultSummary(true);
+                        exportTaskEvidenceInternal(taskName);
                     } else {
+                        readRemoteResultSummary(true);
+                        exportTaskEvidenceInternal(taskName);
                         refreshPreviewOnce(REMOTE_TASK_FRAME, "最终画面：" + formatTaskName(taskName));
                         append("实时画面保持中；只有点击“结束游戏”或“停止任务”才会断开。");
                     }
@@ -4120,6 +4265,29 @@ public final class MainActivity extends Activity {
             }
             Thread.sleep(1000);
         }
+    }
+
+    private void waitForProcessQuietly(Process process, String label, long timeoutMs) {
+        if (process == null) {
+            return;
+        }
+        long deadline = System.currentTimeMillis() + Math.max(0, timeoutMs);
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                process.exitValue();
+                return;
+            } catch (IllegalThreadStateException stillRunning) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException error) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            } catch (Throwable ignored) {
+                return;
+            }
+        }
+        append(label + " 未在清理窗口内退出，已继续回到空闲状态。");
     }
 
     private boolean isTaskTerminalPhase(String phase) {
@@ -4219,7 +4387,8 @@ public final class MainActivity extends Activity {
         try {
             killMaaNikkeBackendProcesses();
             runBackendShellQuiet("rm -f " + REMOTE_TASK_RESULT + " " + REMOTE_TASK_LOG + " "
-                    + REMOTE_TASK_FRAME + " " + REMOTE_LAST + " " + REMOTE_BACKEND_STDOUT);
+                    + REMOTE_TASK_FRAME + " " + REMOTE_LAST + " " + REMOTE_PREVIEW_JPEG + " "
+                    + REMOTE_BACKEND_STDOUT);
             append("已清理上一次任务的后端进程、结果和画面缓存。");
         } catch (Throwable error) {
             append("清理旧任务缓存失败，继续尝试启动：" + error.getClass().getSimpleName() + ": " + error.getMessage());
@@ -4228,8 +4397,11 @@ public final class MainActivity extends Activity {
 
     private void cleanupAfterGameStopped() {
         try {
+            stopPreviewUserServiceFilePreview();
+            unbindPreviewUserService();
             killMaaNikkeBackendProcesses();
-            runBackendShellQuiet("rm -f " + REMOTE_TASK_FRAME + " " + REMOTE_LAST + " " + REMOTE_BEFORE + " " + REMOTE_AFTER);
+            runBackendShellQuiet("rm -f " + REMOTE_TASK_FRAME + " " + REMOTE_LAST + " "
+                    + REMOTE_PREVIEW_JPEG + " " + REMOTE_BEFORE + " " + REMOTE_AFTER);
         } catch (Throwable error) {
             append("结束后清理画面缓存失败：" + error.getClass().getSimpleName() + ": " + error.getMessage());
         }
@@ -4261,7 +4433,7 @@ public final class MainActivity extends Activity {
 
     private String maaNikkeBackendProcessPipelineCommand() {
         return "(ps -A -o PID,ARGS 2>/dev/null || ps -A) "
-                + "| grep -E 'MaaNikkeTaskRunner|MaaNikkeRootIrProbe|maanikke-root-ir-probe[.]jar' "
+                + "| grep -E 'MaaNikkeTaskRunner|MaaNikkeRootIrProbe|maanikke-root-ir-probe[.]jar|maanikke_run_probe_env[.]sh' "
                 + "| grep -v grep";
     }
 
@@ -4353,6 +4525,28 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private void appendRemoteFile(String remotePath, byte[] bytes, String mode) throws Exception {
+        String quoted = shellQuote(remotePath);
+        Process process = startBackendShell("cat >> " + quoted + " && chmod " + mode + " " + quoted);
+        OutputStream output = process.getOutputStream();
+        try {
+            output.write(bytes);
+            output.flush();
+        } finally {
+            output.close();
+        }
+        String stdout = readAll(process.getInputStream());
+        String stderr = readAll(process.getErrorStream());
+        int exit = process.waitFor();
+        if (stderr.trim().length() > 0) {
+            append("后端写入输出：" + compactLogText(stderr.trim()));
+        }
+        if (exit != 0) {
+            throw new IllegalStateException("append remote file exit=" + exit
+                    + " path=" + remotePath + " stdout=" + stdout + " stderr=" + stderr);
+        }
+    }
+
     private void scheduleBundledResourceSyncIfNeeded() {
         if (!hasStoragePermission()) {
             return;
@@ -4376,18 +4570,19 @@ public final class MainActivity extends Activity {
 
     private void syncBundledResourcesIfNeeded() throws Exception {
         File resourceRoot = getPublicProjectDir(PUBLIC_RESOURCE_DIR);
+        File libRoot = getPublicProjectDir(PUBLIC_LIB_DIR);
         File targetBaseRoot = new File(resourceRoot, PUBLIC_RESOURCE_BASE_DIR);
         File targetEvidenceRoot = new File(resourceRoot, PUBLIC_RESOURCE_EVIDENCE_DIR);
         File stampFile = new File(resourceRoot, PUBLIC_RESOURCE_STAMP_FILE);
         String assetStamp = readBundledResourceAssetStamp();
         String installedStamp = readTextFileQuiet(stampFile);
-        boolean resourceReady = isBundledResourceInstalled(targetBaseRoot, targetEvidenceRoot);
+        boolean resourceReady = isBundledResourceInstalled(targetBaseRoot, targetEvidenceRoot, libRoot);
         if (resourceReady && assetStamp.equals(installedStamp)) {
             return;
         }
 
         synchronized (bundledResourceLock) {
-            resourceReady = isBundledResourceInstalled(targetBaseRoot, targetEvidenceRoot);
+            resourceReady = isBundledResourceInstalled(targetBaseRoot, targetEvidenceRoot, libRoot);
             installedStamp = readTextFileQuiet(stampFile);
             if (resourceReady && assetStamp.equals(installedStamp)) {
                 return;
@@ -4395,10 +4590,13 @@ public final class MainActivity extends Activity {
 
             ensurePublicProjectDirs();
             clearDirectory(resourceRoot, null);
+            clearDirectory(libRoot, null);
             ensureDirectory(resourceRoot);
+            ensureDirectory(libRoot);
 
             copyBundledAssetTree(ASSET_MAA_RESOURCE_BASE, targetBaseRoot);
             copyBundledAssetTree(ASSET_OCR_EVIDENCE_ROOT, targetEvidenceRoot);
+            copyBundledAssetTree(ASSET_MAA_LIB_ROOT, libRoot);
             copyBundledAssetFile(ASSET_MAA_RESOURCE_INTERFACE,
                     new File(resourceRoot, PUBLIC_RESOURCE_INTERFACE_FILE));
             copyBundledAssetFile(ASSET_MAA_RESOURCE_MANIFEST,
@@ -4420,7 +4618,9 @@ public final class MainActivity extends Activity {
             public void run() {
                 try {
                     File resourceRoot = getPublicProjectDir(PUBLIC_RESOURCE_DIR);
+                    File libRoot = getPublicProjectDir(PUBLIC_LIB_DIR);
                     clearDirectory(resourceRoot, null);
+                    clearDirectory(libRoot, null);
                     syncBundledResourcesIfNeeded();
                     append("资源已重新初始化。");
                 } catch (Throwable error) {
@@ -4431,34 +4631,72 @@ public final class MainActivity extends Activity {
         });
     }
 
-    private boolean isBundledResourceInstalled(File targetBaseRoot, File targetEvidenceRoot) {
+    private boolean isBundledResourceInstalled(File targetBaseRoot, File targetEvidenceRoot, File libRoot) {
         return new File(targetBaseRoot, "pipeline/task/startgame.json").exists()
                 && new File(targetBaseRoot, "model/ocr/rec.onnx").exists()
                 && new File(targetBaseRoot, "image/homebutton2.png").exists()
                 && new File(targetEvidenceRoot, "manifest.json").exists()
-                && new File(targetEvidenceRoot, "full/mail_after_open_for_apk.png").exists();
+                && new File(targetEvidenceRoot, "full/mail_after_open_for_apk.png").exists()
+                && isBundledMaaLibInstalled(libRoot);
+    }
+
+    private boolean isBundledMaaLibInstalled(File libRoot) {
+        if (libRoot == null || !libRoot.isDirectory()) {
+            return false;
+        }
+        for (int i = 0; i < REQUIRED_MAA_LIBS.length; i++) {
+            File file = new File(libRoot, REQUIRED_MAA_LIBS[i]);
+            if (!file.isFile() || file.length() <= 0L) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private String readBundledResourceAssetStamp() throws Exception {
         String manifest = readAssetText(ASSET_MAA_RESOURCE_MANIFEST);
         String interfaceJson = readAssetText(ASSET_MAA_RESOURCE_INTERFACE);
         String ocrManifest = readAssetText(ASSET_OCR_EVIDENCE_ROOT + "/manifest.json");
+        StringBuilder libStamp = new StringBuilder();
+        for (int i = 0; i < REQUIRED_MAA_LIBS.length; i++) {
+            String assetName = ASSET_MAA_LIB_ROOT + "/" + REQUIRED_MAA_LIBS[i];
+            libStamp.append(REQUIRED_MAA_LIBS[i]).append(':').append(readAssetBytes(assetName).length).append(';');
+        }
         PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
         long updateTime = info == null ? 0L : info.lastUpdateTime;
-        return updateTime + "|" + manifest.hashCode() + "|" + interfaceJson.hashCode() + "|" + ocrManifest.hashCode();
+        return updateTime + "|" + manifest.hashCode() + "|" + interfaceJson.hashCode()
+                + "|" + ocrManifest.hashCode() + "|" + libStamp.toString().hashCode();
     }
 
     private boolean needsBundledResourceSync() {
         try {
             File resourceRoot = getPublicProjectDir(PUBLIC_RESOURCE_DIR);
+            File libRoot = getPublicProjectDir(PUBLIC_LIB_DIR);
             File targetBaseRoot = new File(resourceRoot, PUBLIC_RESOURCE_BASE_DIR);
             File targetEvidenceRoot = new File(resourceRoot, PUBLIC_RESOURCE_EVIDENCE_DIR);
             File stampFile = new File(resourceRoot, PUBLIC_RESOURCE_STAMP_FILE);
             String assetStamp = readBundledResourceAssetStamp();
             return !assetStamp.equals(readTextFileQuiet(stampFile))
-                    || !isBundledResourceInstalled(targetBaseRoot, targetEvidenceRoot);
+                    || !isBundledResourceInstalled(targetBaseRoot, targetEvidenceRoot, libRoot);
         } catch (Throwable error) {
             return true;
+        }
+    }
+
+    private boolean isBundledResourceAlreadyUsable() {
+        try {
+            File resourceRoot = getPublicProjectDir(PUBLIC_RESOURCE_DIR);
+            File libRoot = getPublicProjectDir(PUBLIC_LIB_DIR);
+            File baseRoot = new File(resourceRoot, PUBLIC_RESOURCE_BASE_DIR);
+            File evidenceRoot = new File(resourceRoot, PUBLIC_RESOURCE_EVIDENCE_DIR);
+            return new File(resourceRoot, PUBLIC_RESOURCE_INTERFACE_FILE).isFile()
+                    && new File(resourceRoot, PUBLIC_RESOURCE_STAMP_FILE).isFile()
+                    && new File(baseRoot, "pipeline").isDirectory()
+                    && new File(baseRoot, "image").isDirectory()
+                    && new File(evidenceRoot, "manifest.json").isFile()
+                    && isBundledMaaLibInstalled(libRoot);
+        } catch (Throwable ignored) {
+            return false;
         }
     }
 
@@ -4696,6 +4934,7 @@ public final class MainActivity extends Activity {
 
     private void prepareBackendJarAndRunner(String mainClassAndArgs) throws Exception {
         writeRemoteFile(REMOTE_JAR, readAssetBytes(ASSET_JAR), "444");
+        syncMaaCoreRuntimeToTmp();
         try {
             writeRemoteFile(REMOTE_MAACORE_BRIDGE, readAssetBytes(ASSET_MAACORE_BRIDGE), "555");
             append("后端运行包与 MaaCore bridge 已写入 /data/local/tmp。");
@@ -4704,6 +4943,17 @@ public final class MainActivity extends Activity {
             append("后端运行包已写入 /data/local/tmp。");
         }
         writeRemoteRunner(mainClassAndArgs);
+    }
+
+    private void syncMaaCoreRuntimeToTmp() throws Exception {
+        runBackendShell("rm -rf " + shellQuote(REMOTE_MAACORE_LIB_DIR)
+                + " && mkdir -p " + shellQuote(REMOTE_MAACORE_LIB_DIR));
+        for (int i = 0; i < REQUIRED_MAA_LIBS.length; i++) {
+            String name = REQUIRED_MAA_LIBS[i];
+            writeRemoteFile(REMOTE_MAACORE_LIB_DIR + "/" + name,
+                    readAssetBytes(ASSET_MAA_LIB_ROOT + "/" + name), "555");
+        }
+        append("MaaCore runtime libs synced to " + REMOTE_MAACORE_LIB_DIR + ".");
     }
 
     private void writeRemoteRunner(String mainClassAndArgs) throws Exception {
@@ -4794,12 +5044,14 @@ public final class MainActivity extends Activity {
         File screenshots = new File(base, PUBLIC_SCREENSHOT_DIR);
         File apk = new File(base, PUBLIC_APK_DIR);
         File resource = new File(base, PUBLIC_RESOURCE_DIR);
+        File lib = new File(base, PUBLIC_LIB_DIR);
         String command = "mkdir -p "
                 + shellQuote(exports.getAbsolutePath()) + " "
                 + shellQuote(logs.getAbsolutePath()) + " "
                 + shellQuote(screenshots.getAbsolutePath()) + " "
                 + shellQuote(apk.getAbsolutePath()) + " "
-                + shellQuote(resource.getAbsolutePath());
+                + shellQuote(resource.getAbsolutePath()) + " "
+                + shellQuote(lib.getAbsolutePath());
         runBackendShell(command);
     }
 
@@ -4904,22 +5156,52 @@ public final class MainActivity extends Activity {
         lastTaskPreviewFallbackMs = 0;
         previewHasFrame = false;
         lastPhasePollMs = 0;
+        previewLoopStartedAtMs = System.currentTimeMillis();
+        lastUserServiceFrameModifiedMs = 0;
+        lastUserServiceFrameLength = 0;
         lastTaskResultLogKey = "";
         lastProbeResultLogKey = "";
         lastBattleFailedNotifyKey = "";
+        previewUserServiceFailureCount = 0;
+        previewUserServiceSurfaceReady = false;
+        previewUseLocalNativeFallback = false;
         synchronized (previewFrameLock) {
-            pendingPreviewBytes = null;
+            recyclePendingPreviewBitmapLocked();
             pendingPreviewInfo = "";
         }
         previewRenderScheduled.set(false);
         showDebugPreviewMarker(taskMode && debugMode);
         showPreviewLoading(loadingText);
+        ensurePreviewUserServiceBound();
+        if (taskMode) {
+            startPreviewUserServiceFilePreview();
+        }
         previewExecutor.execute(new Runnable() {
             @Override
             public void run() {
                 while (previewActive && generation == previewLoopGeneration) {
                     try {
-                        boolean refreshed = refreshPreviewStreamFromSocket(taskMode ? "stream task" : "stream probe", taskMode, generation);
+                        if (taskMode && previewUserServiceReady && !previewUseLocalNativeFallback) {
+                            updatePreviewUserServiceStatus();
+                            long now = System.currentTimeMillis();
+                            if (now - lastPhasePollMs >= 1000) {
+                                lastPhasePollMs = now;
+                                updatePhaseFromRemoteResult();
+                            }
+                            keepPreviewStatusAttached(true);
+                            Thread.sleep(260);
+                            continue;
+                        }
+                        if (taskMode && isShizukuBackend() && !previewUseLocalNativeFallback) {
+                            ensurePreviewUserServiceBound();
+                            if (!previewUserServiceReady
+                                    && previewRenderSurface != null
+                                    && System.currentTimeMillis() - previewLoopStartedAtMs > 3200) {
+                                activateLocalPreviewRendererFallback("preview service connect timeout");
+                            }
+                        }
+                        boolean refreshed = !isShizukuBackend()
+                                && refreshPreviewStreamFromSocket(taskMode ? "stream task" : "stream probe", taskMode, generation);
                         if (!refreshed) {
             if (taskMode) {
                 maybeRefreshTaskPreviewFallback("task fallback");
@@ -4976,6 +5258,7 @@ public final class MainActivity extends Activity {
 
     private void refreshTaskPreviewFallback(String label) throws Exception {
         String[] candidates = new String[]{
+                REMOTE_PREVIEW_JPEG,
                 REMOTE_TASK_AFTER_WAIT,
                 REMOTE_TASK_AFTER,
                 REMOTE_TASK_AFTER_OPEN,
@@ -4991,7 +5274,7 @@ public final class MainActivity extends Activity {
 
     private void maybeRefreshTaskPreviewFallback(String label) throws Exception {
         long now = System.currentTimeMillis();
-        if (now - lastTaskPreviewFallbackMs < 2500) {
+        if (now - lastTaskPreviewFallbackMs < 180) {
             return;
         }
         lastTaskPreviewFallbackMs = now;
@@ -5025,6 +5308,7 @@ public final class MainActivity extends Activity {
 
     private void stopPreviewLoop() {
         previewActive = false;
+        stopPreviewUserServiceFilePreview();
         showDebugPreviewMarker(false);
         hidePreviewLoading();
     }
@@ -5040,6 +5324,7 @@ public final class MainActivity extends Activity {
 
     private void resetPreviewPane(final String message) {
         previewActive = false;
+        stopPreviewUserServiceFilePreview();
         showDebugPreviewMarker(false);
         previewLoopGeneration++;
         lastPreviewStamp = "";
@@ -5047,7 +5332,7 @@ public final class MainActivity extends Activity {
         lastSocketPreviewFrameMs = 0;
         previewHasFrame = true;
         synchronized (previewFrameLock) {
-            pendingPreviewBytes = null;
+            recyclePendingPreviewBitmapLocked();
             pendingPreviewInfo = "";
         }
         previewRenderScheduled.set(false);
@@ -5055,10 +5340,14 @@ public final class MainActivity extends Activity {
             @Override
             public void run() {
                 hidePreviewLoadingOnMainThread();
-                if (previewImage != null) {
-                    previewImage.setImageDrawable(null);
-                    previewImage.setBackgroundColor(0xff0f172a);
+                if (previewSurfaceView != null) {
+                    previewSurfaceView.setBackgroundColor(0xff0f172a);
                 }
+                if (previewFallbackImage != null) {
+                    previewFallbackImage.setImageDrawable(null);
+                    previewFallbackImage.setVisibility(View.GONE);
+                }
+                recycleRenderedPreviewBitmap();
                 if (frameText != null) {
                     frameText.setText(message == null || message.length() == 0 ? TEXT_WAITING_PREVIEW : message);
                 }
@@ -5363,8 +5652,20 @@ public final class MainActivity extends Activity {
         if (bytes == null || bytes.length == 0) {
             return;
         }
+        Bitmap decodedBitmap = BitmapFactory.decodeByteArray(
+                bytes, 0, bytes.length, previewDecodeOptions);
+        if (decodedBitmap == null) {
+            return;
+        }
+        boolean hasVisibleContent = previewHasFrame
+                || hasVisiblePreviewContent(decodedBitmap, bytes.length);
+        if (!hasVisibleContent) {
+            decodedBitmap.recycle();
+            return;
+        }
         synchronized (previewFrameLock) {
-            pendingPreviewBytes = bytes;
+            recyclePendingPreviewBitmapLocked();
+            pendingPreviewBitmap = decodedBitmap;
             pendingPreviewInfo = info == null ? "" : info;
         }
         if (!previewRenderScheduled.compareAndSet(false, true)) {
@@ -5375,44 +5676,41 @@ public final class MainActivity extends Activity {
             public void run() {
                 if (generation != previewLoopGeneration) {
                     previewRenderScheduled.set(false);
+                    synchronized (previewFrameLock) {
+                        recyclePendingPreviewBitmapLocked();
+                    }
                     return;
                 }
-                byte[] bytesToRender;
+                Bitmap bitmapToRender;
                 String infoToRender;
                 synchronized (previewFrameLock) {
-                    bytesToRender = pendingPreviewBytes;
+                    bitmapToRender = pendingPreviewBitmap;
                     infoToRender = pendingPreviewInfo;
-                    pendingPreviewBytes = null;
+                    pendingPreviewBitmap = null;
                     pendingPreviewInfo = "";
                 }
                 try {
-                    if (bytesToRender != null && bytesToRender.length > 0) {
-                        Bitmap bitmap = BitmapFactory.decodeByteArray(
-                                bytesToRender, 0, bytesToRender.length, previewDecodeOptions);
-                        if (bitmap != null) {
-                            boolean hasVisibleContent = previewHasFrame
-                                    || hasVisiblePreviewContent(bitmap, bytesToRender.length);
-                            if (hasVisibleContent) {
-                                previewImage.setImageBitmap(bitmap);
-                                previewHasFrame = true;
-                                hidePreviewLoadingOnMainThread();
-                                frameText.setText(infoToRender);
-                            } else if (frameText != null) {
-                                if (!previewHasFrame) {
-                                    previewImage.setImageDrawable(null);
-                                    previewImage.setBackgroundColor(0xff111111);
-                                }
-                                frameText.setText(previewLoadingBaseText.length() == 0
-                                        ? TEXT_STARTING_GAME
-                                        : previewLoadingBaseText);
+                    if (bitmapToRender != null) {
+                        Bitmap previousBitmap = renderedPreviewBitmap;
+                        boolean rendered = renderPreviewBitmapNative(bitmapToRender);
+                        if (rendered) {
+                            renderedPreviewBitmap = bitmapToRender;
+                            previewHasFrame = true;
+                            hidePreviewLoadingOnMainThread();
+                            frameText.setText(infoToRender);
+                            writePreviewAppStatus("rendered_local_native " + infoToRender);
+                            if (previousBitmap != null && previousBitmap != bitmapToRender && !previousBitmap.isRecycled()) {
+                                previousBitmap.recycle();
                             }
+                        } else {
+                            bitmapToRender.recycle();
                         }
                     }
                 } finally {
                     previewRenderScheduled.set(false);
                     boolean hasPendingFrame;
                     synchronized (previewFrameLock) {
-                        hasPendingFrame = pendingPreviewBytes != null;
+                        hasPendingFrame = pendingPreviewBitmap != null;
                     }
                     if (hasPendingFrame && previewRenderScheduled.compareAndSet(false, true)) {
                         mainHandler.post(this);
@@ -5420,6 +5718,405 @@ public final class MainActivity extends Activity {
                 }
             }
         });
+    }
+
+    private void recyclePendingPreviewBitmapLocked() {
+        if (pendingPreviewBitmap != null && !pendingPreviewBitmap.isRecycled()) {
+            pendingPreviewBitmap.recycle();
+        }
+        pendingPreviewBitmap = null;
+    }
+
+    private void recycleRenderedPreviewBitmap() {
+        if (renderedPreviewBitmap != null && !renderedPreviewBitmap.isRecycled()) {
+            renderedPreviewBitmap.recycle();
+        }
+        renderedPreviewBitmap = null;
+    }
+
+    private void setPreviewRenderSurface(Surface surface) {
+        previewRenderSurface = surface;
+        previewUserServiceSurfaceReady = false;
+        if (isShizukuBackend()) {
+            setPreviewUserServiceSurface(surface);
+            if (!previewUserServiceReady && previewUseLocalNativeFallback) {
+                activateLocalPreviewRendererFallback("surface recreated before preview service ready");
+            }
+            return;
+        }
+        try {
+            previewNativeRendererReady = NativePreviewRenderer.setSurface(surface);
+            if (!previewNativeRendererReady) {
+                append("Native preview surface unavailable: EGL init returned false");
+            }
+        } catch (Throwable error) {
+            previewNativeRendererReady = false;
+            append("Native preview surface unavailable: "
+                    + error.getClass().getSimpleName() + ": " + error.getMessage());
+        }
+    }
+
+    private Shizuku.UserServiceArgs getPreviewUserServiceArgs() {
+        if (previewUserServiceArgs == null) {
+            previewUserServiceArgs = new Shizuku.UserServiceArgs(new ComponentName(
+                    getPackageName(),
+                    PreviewRenderUserService.class.getName()))
+                    .daemon(false)
+                    .debuggable(true)
+                    .processNameSuffix("preview5")
+                    .tag("maanikke_preview_v5")
+                    .version(5);
+        }
+        return previewUserServiceArgs;
+    }
+
+    private void ensurePreviewUserServiceBound() {
+        if (!isShizukuBackend() || previewUserServiceReady || previewUserServiceRequested) {
+            return;
+        }
+        if (!isShizukuBinderAlive() || !hasShizukuPermission()) {
+            return;
+        }
+        previewUserServiceRequested = true;
+        if (previewUserServiceConnection == null) {
+            previewUserServiceConnection = new ServiceConnection() {
+                @Override
+                public void onServiceConnected(ComponentName name, IBinder service) {
+                    previewRenderService = IPreviewRenderService.Stub.asInterface(service);
+                    previewUserServiceReady = previewRenderService != null;
+                    previewUserServiceFailureCount = 0;
+                    previewUseLocalNativeFallback = false;
+                    append(previewUserServiceReady
+                            ? "Native Surface preview service connected."
+                            : "Native Surface preview service connected without binder.");
+                    if (previewUserServiceReady && previewRenderSurface != null && !previewUseLocalNativeFallback) {
+                        setPreviewUserServiceSurface(previewRenderSurface);
+                    }
+                    if (previewUserServiceReady && previewActive && previewTaskMode && !previewUseLocalNativeFallback) {
+                        startPreviewUserServiceFilePreview();
+                    }
+                }
+
+                @Override
+                public void onServiceDisconnected(ComponentName name) {
+                    previewRenderService = null;
+                    previewUserServiceReady = false;
+                    previewUserServiceRequested = false;
+                    append("Native Surface preview service disconnected.");
+                }
+            };
+        }
+        try {
+            writeRemoteFile("/data/local/tmp/libmaanikke_preview_renderer.so",
+                    readAssetBytes("libmaanikke_preview_renderer.so"), "555");
+            try {
+                Shizuku.unbindUserService(getPreviewUserServiceArgs(), null, true);
+            } catch (Throwable ignored) {
+            }
+            Shizuku.bindUserService(getPreviewUserServiceArgs(), previewUserServiceConnection);
+        } catch (Throwable error) {
+            previewUserServiceReady = false;
+            previewUserServiceRequested = false;
+            append("Native Surface preview service unavailable: "
+                    + error.getClass().getSimpleName() + ": " + error.getMessage());
+        }
+    }
+
+    private void setPreviewUserServiceSurface(Surface surface) {
+        IPreviewRenderService service = previewRenderService;
+        if (service == null || surface == null) {
+            return;
+        }
+        try {
+            if (previewNativeRendererReady) {
+                try {
+                    NativePreviewRenderer.clearSurface();
+                } catch (Throwable ignored) {
+                }
+                previewNativeRendererReady = false;
+            }
+            boolean ready = service.setSurface(surface);
+            previewUserServiceSurfaceReady = ready;
+            if (ready) {
+                previewUserServiceReady = true;
+                previewUseLocalNativeFallback = false;
+            } else {
+                activateLocalPreviewRendererFallback("preview service surface rejected");
+            }
+            previewUserServiceFailureCount = 0;
+            if (ready && previewActive && previewTaskMode) {
+                startPreviewUserServiceFilePreview();
+            }
+        } catch (Throwable error) {
+            previewUserServiceReady = false;
+            previewUserServiceSurfaceReady = false;
+            append("Native Surface preview surface failed: "
+                    + error.getClass().getSimpleName() + ": " + error.getMessage());
+            activateLocalPreviewRendererFallback(error.getClass().getSimpleName() + ": " + error.getMessage());
+        }
+    }
+
+    private void clearPreviewUserServiceSurface() {
+        IPreviewRenderService service = previewRenderService;
+        if (service == null) {
+            return;
+        }
+        try {
+            service.clearSurface();
+            writePreviewAppStatus("user_service_surface_cleared");
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private boolean startPreviewUserServiceFilePreview() {
+        IPreviewRenderService service = previewRenderService;
+        if (service == null || !previewUserServiceReady || !previewUserServiceSurfaceReady
+                || previewUseLocalNativeFallback || !previewTaskMode) {
+            return false;
+        }
+        try {
+            return service.startFilePreview(REMOTE_PREVIEW_JPEG, 95);
+        } catch (Throwable error) {
+            previewUserServiceReady = false;
+            append("Native Surface preview start failed: "
+                    + error.getClass().getSimpleName() + ": " + error.getMessage());
+            return false;
+        }
+    }
+
+    private void stopPreviewUserServiceFilePreview() {
+        IPreviewRenderService service = previewRenderService;
+        if (service == null) {
+            return;
+        }
+        try {
+            service.stopFilePreview();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void updatePreviewUserServiceStatus() {
+        IPreviewRenderService service = previewRenderService;
+        if (service == null || !previewUserServiceReady || previewUseLocalNativeFallback) {
+            return;
+        }
+        try {
+            String status = service.getStatus();
+            if (status != null && status.startsWith("rendered:")) {
+                previewUserServiceFailureCount = 0;
+                previewHasFrame = true;
+                hidePreviewLoading();
+                updateFallbackPreviewFromUserServiceFrame(status);
+                writePreviewAppStatus("rendered_user_service " + status);
+                if (frameText != null) {
+                    frameText.setText("native surface / " + status);
+                }
+            } else if (status != null && (status.indexOf("failed") >= 0 || status.startsWith("error:"))) {
+                previewUserServiceFailureCount++;
+                if (previewUserServiceFailureCount >= 3) {
+                    append("Native Surface preview service fallback: " + status);
+                    stopPreviewUserServiceFilePreview();
+                    previewUserServiceReady = false;
+                    previewUserServiceSurfaceReady = false;
+                    activateLocalPreviewRendererFallback(status);
+                }
+            }
+        } catch (Throwable error) {
+            previewUserServiceReady = false;
+            previewUserServiceSurfaceReady = false;
+            activateLocalPreviewRendererFallback(error.getClass().getSimpleName() + ": " + error.getMessage());
+        }
+    }
+
+    private void updateFallbackPreviewFromUserServiceFrame(String status) {
+        try {
+            String[] parts = status.split(":");
+            if (parts.length < 3) {
+                return;
+            }
+            long length = Long.parseLong(parts[1]);
+            long modified = Long.parseLong(parts[2]);
+            if (length <= 0 || modified <= 0) {
+                return;
+            }
+            if (length == lastUserServiceFrameLength && modified == lastUserServiceFrameModifiedMs) {
+                return;
+            }
+            File frame = new File(REMOTE_PREVIEW_JPEG);
+            if (!frame.isFile() || frame.length() <= 0) {
+                return;
+            }
+            Bitmap bitmap = BitmapFactory.decodeFile(frame.getAbsolutePath(), previewDecodeOptions);
+            if (bitmap == null) {
+                return;
+            }
+            Bitmap previousBitmap = renderedPreviewBitmap;
+            renderedPreviewBitmap = bitmap;
+            lastUserServiceFrameLength = length;
+            lastUserServiceFrameModifiedMs = modified;
+            if (previewFallbackImage != null) {
+                previewFallbackImage.setImageBitmap(bitmap);
+                previewFallbackImage.setVisibility(View.VISIBLE);
+            }
+            hidePreviewLoadingOnMainThread();
+            if (previousBitmap != null && previousBitmap != bitmap && !previousBitmap.isRecycled()) {
+                previousBitmap.recycle();
+            }
+        } catch (Throwable error) {
+            writePreviewAppStatus("fallback_image_error " + error.getClass().getSimpleName());
+        }
+    }
+
+    private void activateLocalPreviewRendererFallback(String reason) {
+        if (previewRenderSurface == null) {
+            return;
+        }
+        try {
+            previewUseLocalNativeFallback = true;
+            previewNativeRendererReady = NativePreviewRenderer.setSurface(previewRenderSurface);
+            if (previewNativeRendererReady) {
+                writePreviewAppStatus("fallback_local_native " + compactLogText(reason));
+                append("Native preview fallback enabled in app process: " + compactLogText(reason));
+            } else {
+                writePreviewAppStatus("fallback_surface_failed " + compactLogText(reason));
+                append("Native preview fallback surface failed: " + compactLogText(reason));
+            }
+        } catch (Throwable error) {
+            previewNativeRendererReady = false;
+            writePreviewAppStatus("fallback_error " + error.getClass().getSimpleName());
+            append("Native preview fallback failed: "
+                    + error.getClass().getSimpleName() + ": " + error.getMessage());
+        }
+    }
+
+    private void writePreviewAppStatus(String status) {
+        if (status == null) {
+            status = "";
+        }
+        long now = System.currentTimeMillis();
+        String safe = status.replace('\n', ' ').replace('\r', ' ');
+        if (safe.equals(lastPreviewAppStatusValue) && now - lastPreviewAppStatusWriteMs < 1800) {
+            return;
+        }
+        if (!safe.equals(lastPreviewAppStatusValue) && now - lastPreviewAppStatusWriteMs < 450) {
+            return;
+        }
+        lastPreviewAppStatusWriteMs = now;
+        lastPreviewAppStatusValue = safe;
+        final String payload = now + " " + safe + "\n";
+        try {
+            controlExecutor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        writeRemoteFile(REMOTE_PREVIEW_APP_STATUS, payload.getBytes("UTF-8"), "666");
+                    } catch (Throwable ignored) {
+                    }
+                }
+            });
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void writeAppRunStatus(String status) {
+        if (status == null) {
+            status = "";
+        }
+        final String safe = status.replace('\n', ' ').replace('\r', ' ');
+        final String payload = System.currentTimeMillis() + " " + safe + "\n";
+        Thread writer = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    writeRemoteFile(REMOTE_APP_RUN_STATUS, payload.getBytes("UTF-8"), "666");
+                    appendRemoteFile(REMOTE_APP_RUN_EVENTS, payload.getBytes("UTF-8"), "666");
+                } catch (Throwable ignored) {
+                }
+            }
+        }, "maanikke-app-status-writer");
+        writer.setDaemon(true);
+        writer.start();
+    }
+
+    private void writeAppRunStatusQueued(String status) {
+        if (status == null) {
+            status = "";
+        }
+        final String safe = status.replace('\n', ' ').replace('\r', ' ');
+        final String payload = System.currentTimeMillis() + " " + safe + "\n";
+        try {
+            controlExecutor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        writeRemoteFile(REMOTE_APP_RUN_STATUS, payload.getBytes("UTF-8"), "666");
+                        appendRemoteFile(REMOTE_APP_RUN_EVENTS, payload.getBytes("UTF-8"), "666");
+                    } catch (Throwable ignored) {
+                    }
+                }
+            });
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void clearPreviewRenderSurface() {
+        clearPreviewUserServiceSurface();
+        previewRenderSurface = null;
+        try {
+            NativePreviewRenderer.clearSurface();
+        } catch (Throwable ignored) {
+        }
+        previewNativeRendererReady = false;
+        previewUserServiceSurfaceReady = false;
+        previewUseLocalNativeFallback = false;
+    }
+
+    private void unbindPreviewUserService() {
+        stopPreviewUserServiceFilePreview();
+        IPreviewRenderService service = previewRenderService;
+        if (service != null) {
+            try {
+                service.shutdown();
+            } catch (Throwable ignored) {
+            }
+        }
+        if (previewUserServiceConnection != null && previewUserServiceArgs != null) {
+            try {
+                Shizuku.unbindUserService(previewUserServiceArgs, previewUserServiceConnection, true);
+            } catch (Throwable ignored) {
+            }
+        }
+        if (previewUserServiceArgs != null) {
+            try {
+                Shizuku.unbindUserService(previewUserServiceArgs, null, true);
+            } catch (Throwable ignored) {
+            }
+        }
+        previewRenderService = null;
+        previewUserServiceReady = false;
+        previewUserServiceRequested = false;
+        previewUserServiceSurfaceReady = false;
+        previewUseLocalNativeFallback = false;
+        writePreviewAppStatus("user_service_unbound");
+    }
+
+    private boolean renderPreviewBitmapNative(Bitmap bitmap) {
+        if (bitmap == null || bitmap.isRecycled() || previewRenderSurface == null || !previewNativeRendererReady) {
+            return false;
+        }
+        try {
+            boolean rendered = NativePreviewRenderer.renderBitmap(bitmap);
+            if (!rendered) {
+                previewNativeRendererReady = false;
+                append("Native preview render failed: renderer returned false");
+            }
+            return rendered;
+        } catch (Throwable error) {
+            previewNativeRendererReady = false;
+            append("Native preview render failed: "
+                    + error.getClass().getSimpleName() + ": " + error.getMessage());
+            return false;
+        }
     }
 
     private String getRemoteFrameStamp(String remoteFrame) throws Exception {
@@ -5955,6 +6652,15 @@ public final class MainActivity extends Activity {
                         }
                     });
                 }
+            }
+        });
+    }
+
+    private void showToast(final String message) {
+        mainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
             }
         });
     }
