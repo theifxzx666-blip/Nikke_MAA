@@ -24,6 +24,7 @@ supports/prebuilt/
 # Local screenshots, recordings, and evidence
 screenshots/
 recordings/
+回收站/
 *.mp4
 *.mov
 *.avi
